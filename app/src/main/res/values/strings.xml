@@ -325,4 +325,18 @@
   <string name="flex_mode">Flex mode</string>
 
   <string name="save_as_pdf">Save as PDF</string>
+
+  <!-- Add-on related strings for Mozilla Components 145.0 compatibility -->
+  <string name="mozac_feature_addons_settings_allow_in_private_browsing">Allow in private browsing</string>
+  <string name="mozac_feature_addons_successfully_enabled">Add-on enabled successfully</string>
+  <string name="mozac_feature_addons_successfully_disabled">Add-on disabled successfully</string>
+  <string name="mozac_feature_addons_successfully_uninstalled">Add-on uninstalled successfully</string>
+  
+  <!-- Download related strings for Mozilla Components 145.0 compatibility -->
+  <string name="mozac_feature_downloads_again_dialog_title_with_unknown_size">Download again?</string>
+  <string name="mozac_feature_downloads_open_existing_file">Open existing file</string>
+  
+  <!-- AwesomeBar related strings -->
+  <string name="switch_to_tab">Switch to tab</string>
+
 </resources>

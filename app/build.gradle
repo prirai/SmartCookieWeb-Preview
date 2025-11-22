@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         applicationId "com.cookiejarapps.android.smartcookieweb"
-        minSdkVersion 23
+        minSdkVersion 26
         targetSdkVersion 36
         // Increment by 4 with each update
         versionCode 128
@@ -127,7 +127,7 @@ dependencies {
     implementation "com.jakewharton:butterknife:$butterKnifeVersion"
     kapt "com.jakewharton:butterknife-compiler:$butterKnifeVersion"
 
-    final def mozComponentsVersion = "141.0"
+    final def mozComponentsVersion = "145.0"
 
     // Mozilla compose components
     implementation "org.mozilla.components:compose-awesomebar:$mozComponentsVersion"

@@ -13,8 +13,8 @@ class CustomBookmarksStorage(context: Context): BookmarksStorage {
 
     private val manager = BookmarkManager.getInstance(context)
 
-    override suspend fun addFolder(parentGuid: String, title: String, position: UInt?): String {
-        TODO("Not yet implemented")
+    override suspend fun addFolder(parentGuid: String, title: String, position: UInt?): Result<String> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
     override suspend fun addItem(
@@ -22,12 +22,12 @@ class CustomBookmarksStorage(context: Context): BookmarksStorage {
         url: String,
         title: String,
         position: UInt?
-    ): String {
-        TODO("Not yet implemented")
+    ): Result<String> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
-    override suspend fun addSeparator(parentGuid: String, position: UInt?): String {
-        TODO("Not yet implemented")
+    override suspend fun addSeparator(parentGuid: String, position: UInt?): Result<String> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
     override fun cleanup() {
@@ -38,48 +38,53 @@ class CustomBookmarksStorage(context: Context): BookmarksStorage {
         TODO("Not yet implemented")
     }
 
-    override suspend fun deleteNode(guid: String): Boolean {
-        TODO("Not yet implemented")
+    override suspend fun deleteNode(guid: String): Result<Boolean> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
-    override suspend fun getBookmark(guid: String): BookmarkNode? {
-        TODO("Not yet implemented")
+    override suspend fun getBookmark(guid: String): Result<BookmarkNode?> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
-    override suspend fun getBookmarksWithUrl(url: String): List<BookmarkNode> {
-        TODO("Not yet implemented")
+    override suspend fun getBookmarksWithUrl(url: String): Result<List<BookmarkNode>> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
     override suspend fun getRecentBookmarks(
         limit: Int,
         maxAge: Long?,
         currentTime: Long
-    ): List<BookmarkNode> {
-        TODO("Not yet implemented")
+    ): Result<List<BookmarkNode>> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
-    override suspend fun getTree(guid: String, recursive: Boolean): BookmarkNode? {
-        TODO("Not yet implemented")
+    override suspend fun getTree(guid: String, recursive: Boolean): Result<BookmarkNode?> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
     override suspend fun runMaintenance(dbSizeLimit: UInt) {
         TODO("Not yet implemented")
     }
 
-    override suspend fun searchBookmarks(query: String, limit: Int): List<BookmarkNode> {
-        val bookmarks: MutableList<BookmarkNode> = emptyList<BookmarkNode>().toMutableList()
-        for(i in manager.root.itemList){
-            if(i is BookmarkSiteItem){
-                bookmarks.add(BookmarkNode(BookmarkNodeType.ITEM, UUID.randomUUID().toString(), "",
-                    0u, i.title, i.url, 0, 0, null))
+    override suspend fun searchBookmarks(query: String, limit: Int): Result<List<BookmarkNode>> {
+        return try {
+            val bookmarks: MutableList<BookmarkNode> = emptyList<BookmarkNode>().toMutableList()
+            for(i in manager.root.itemList){
+                if(i is BookmarkSiteItem){
+                    bookmarks.add(BookmarkNode(BookmarkNodeType.ITEM, UUID.randomUUID().toString(), "",
+                        0u, i.title, i.url, 0, 0, null))
+                }
             }
-        }
 
-        return bookmarks.filter { s -> s.title?.contains(query) == true || s.url?.contains(query) == true }.take(limit)
+            val filteredBookmarks = bookmarks.filter { s -> s.title?.contains(query) == true || s.url?.contains(query) == true }.take(limit)
+            Result.success(filteredBookmarks)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
-    override suspend fun updateNode(guid: String, info: BookmarkInfo) {
-        TODO("Not yet implemented")
+    override suspend fun updateNode(guid: String, info: BookmarkInfo): Result<Unit> {
+        return Result.failure(NotImplementedError("Not yet implemented"))
     }
 
     override suspend fun warmUp() {

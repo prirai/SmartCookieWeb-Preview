@@ -92,6 +92,8 @@ open class Components(private val applicationContext: Context) {
 
     val downloadEstimator by lazy { DownloadEstimator(dateTimeProvider) }
 
+    val packageNameProvider: () -> String by lazy { { applicationContext.packageName } }
+
     val preferences: SharedPreferences =
             applicationContext.getSharedPreferences(BROWSER_PREFERENCES, Context.MODE_PRIVATE)
 
@@ -164,7 +166,7 @@ open class Components(private val applicationContext: Context) {
     val store by lazy {
         BrowserStore(
                 middleware = listOf(
-                        DownloadMiddleware(applicationContext, DownloadService::class.java),
+                        DownloadMiddleware(applicationContext, DownloadService::class.java, { true }),
                         ReaderViewMiddleware(),
                         ThumbnailsMiddleware(thumbnailStorage),
                         UndoMiddleware(),

@@ -88,12 +88,12 @@ class AwesomeBarView(
         }
         sessionProvider =
             SessionSuggestionProvider(
-                activity.resources,
                 components.store,
                 selectTabUseCase,
                 components.icons,
                 getDrawable(activity, R.drawable.ic_round_search),
-                excludeSelectedSession = true
+                excludeSelectedSession = true,
+                switchToTabDescription = activity.resources.getString(R.string.switch_to_tab)
             )
 
         historyStorageProvider =
@@ -118,7 +118,6 @@ class AwesomeBarView(
 
         defaultSearchSuggestionProvider =
             SearchSuggestionProvider(
-                context = activity,
                 store = components.store,
                 searchUseCase = searchUseCase,
                 fetchClient = components.client,
@@ -285,9 +284,9 @@ class AwesomeBarView(
                     icon = searchBitmap
                 ),
                 SearchSuggestionProvider(
-                    engine,
-                    shortcutSearchUseCase,
-                    components.client,
+                    store = components.store,
+                    searchUseCase = shortcutSearchUseCase,
+                    fetchClient = components.client,
                     limit = 3,
                     mode = SearchSuggestionProvider.Mode.MULTIPLE_SUGGESTIONS,
                     icon = searchBitmap,

@@ -3,6 +3,8 @@ package com.cookiejarapps.android.smartcookieweb.downloads
 import com.cookiejarapps.android.smartcookieweb.R
 import mozilla.components.browser.state.store.BrowserStore
 import mozilla.components.feature.downloads.AbstractFetchDownloadService
+import mozilla.components.feature.downloads.DefaultPackageNameProvider
+import mozilla.components.feature.downloads.PackageNameProvider
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import mozilla.components.support.base.android.NotificationsDelegate
 
@@ -13,4 +15,7 @@ class DownloadService : AbstractFetchDownloadService() {
     override val fileSizeFormatter by lazy { components.fileSizeFormatter }
     override val downloadEstimator by lazy { components.downloadEstimator }
     override val notificationsDelegate: NotificationsDelegate by lazy { components.notificationsDelegate }
+    override val packageNameProvider: PackageNameProvider by lazy { 
+        DefaultPackageNameProvider(applicationContext)
+    }
 }
