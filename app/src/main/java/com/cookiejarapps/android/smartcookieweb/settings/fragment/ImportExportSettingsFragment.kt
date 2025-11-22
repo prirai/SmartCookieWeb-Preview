@@ -140,7 +140,7 @@ class ImportExportSettingsFragment : BaseSettingsFragment() {
             bookmarkFile.delete()
             manager.initialize()
 
-            val doc = Jsoup.parse(content)
+            val doc = Jsoup.parse(content ?: "")
 
             val bookmarkElements = doc.select("A")
             val folderElements = doc.select("H3")

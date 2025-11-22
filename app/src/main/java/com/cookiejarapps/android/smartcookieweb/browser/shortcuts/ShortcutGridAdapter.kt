@@ -20,7 +20,6 @@ import com.cookiejarapps.android.smartcookieweb.utils.Utils
 import mozilla.components.browser.icons.IconRequest
 import mozilla.components.browser.icons.preparer.TippyTopIconPreparer
 import mozilla.components.support.ktx.android.net.hostWithoutCommonPrefixes
-import okhttp3.internal.wait
 
 internal class ShortcutGridAdapter(
         private val context: Context,

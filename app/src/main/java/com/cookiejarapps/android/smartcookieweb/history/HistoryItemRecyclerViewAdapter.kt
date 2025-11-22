@@ -10,7 +10,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cookiejarapps.android.smartcookieweb.R
 import mozilla.components.concept.storage.VisitInfo
 import mozilla.components.support.ktx.kotlin.tryGetHostFromUrl
-import okhttp3.internal.toCanonicalHost
 import java.text.DateFormat.getDateTimeInstance
 import java.text.SimpleDateFormat
 import java.util.*
