@@ -222,13 +222,10 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
             customTabSessionId = customTabSessionId,
             onTabCounterClicked = {
                 thumbnailsFeature.get()?.requestScreenshot()
-
-                val drawerLayout = activity.findViewById<DrawerLayout>(R.id.drawer_layout)
-                val tabDrawer = if(UserPreferences(activity).swapDrawers) activity.findViewById<FrameLayout>(R.id.right_drawer) else activity.findViewById<FrameLayout>(R.id.left_drawer)
-
-                if (tabDrawer != null) {
-                    drawerLayout?.openDrawer(tabDrawer)
-                }
+                
+                // Show the new bottom sheet tabs dialog
+                val tabsBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.newInstance()
+                tabsBottomSheet.show(parentFragmentManager, com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.TAG)
             }
         )
         val browserToolbarMenuController = DefaultBrowserToolbarMenuController(

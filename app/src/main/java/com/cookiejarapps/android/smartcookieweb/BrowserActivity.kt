@@ -185,7 +185,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             // Dynamic status bar based on toolbar position
             if (isBottomToolbar) {
                 enableDynamicStatusBar()
-                // CRITICAL: Hide navigation toolbar stub to prevent 140px space
+                // CRITICAL: Hide navigation toolbar stub to prevent any space
                 hideNavigationToolbarForBottomMode()
             } else {
                 window.statusBarColor = getColor(R.color.statusbar_background)
@@ -314,13 +314,19 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             isToolbarInflated = true
         }
         
-        // Hide navigation toolbar when using bottom toolbar to prevent black bar
+        // Hide navigation toolbar when using bottom toolbar to prevent any visual artifacts
         if (UserPreferences(this).shouldUseBottomToolbar) {
             navigationToolbar.visibility = android.view.View.GONE
-            navigationToolbar.layoutParams?.height = 0
+            navigationToolbar.layoutParams?.apply {
+                height = 0
+                width = 0
+            }
         } else {
             navigationToolbar.visibility = android.view.View.VISIBLE
-            navigationToolbar.layoutParams?.height = resources.getDimensionPixelSize(R.dimen.browser_toolbar_height)
+            navigationToolbar.layoutParams?.apply {
+                height = resources.getDimensionPixelSize(R.dimen.browser_toolbar_height)
+                width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            }
         }
         
         return supportActionBar!!
@@ -441,12 +447,18 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     private fun hideNavigationToolbarForBottomMode() {
         // Hide the ViewStub itself to prevent any space reservation
         binding.navigationToolbarStub.visibility = android.view.View.GONE
-        binding.navigationToolbarStub.layoutParams?.height = 0
+        binding.navigationToolbarStub.layoutParams?.apply {
+            height = 0
+            width = 0
+        }
         
-        // If already inflated, hide the toolbar
+        // If already inflated, hide the toolbar completely
         if (isToolbarInflated) {
             navigationToolbar.visibility = android.view.View.GONE
-            navigationToolbar.layoutParams?.height = 0
+            navigationToolbar.layoutParams?.apply {
+                height = 0
+                width = 0
+            }
         }
     }
 
