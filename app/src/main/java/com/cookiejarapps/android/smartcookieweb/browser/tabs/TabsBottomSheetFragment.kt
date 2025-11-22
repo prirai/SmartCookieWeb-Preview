@@ -46,6 +46,14 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Configure bottom sheet to fixed 60% height - no dragging
+        val bottomSheetDialog = dialog as com.google.android.material.bottomsheet.BottomSheetDialog
+        bottomSheetDialog.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EXPANDED
+        bottomSheetDialog.behavior.isDraggable = false
+        bottomSheetDialog.behavior.isFitToContents = true
+        bottomSheetDialog.behavior.halfExpandedRatio = 0.6f
+        bottomSheetDialog.behavior.skipCollapsed = true
+        
         setupUI()
         setupTabsAdapter()
         // Only update display after adapter is set up
@@ -76,12 +84,12 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 
                 when (tab.position) {
                     0 -> {
-                        // Switch to normal browsing mode
-                        switchToTabMode(BrowserTabType.NORMAL)
+                        // Switch to normal browsing mode with animation
+                        animateTabModeTransition(BrowserTabType.NORMAL)
                     }
                     1 -> {
-                        // Switch to private browsing mode
-                        switchToTabMode(BrowserTabType.PRIVATE)
+                        // Switch to private browsing mode with animation
+                        animateTabModeTransition(BrowserTabType.PRIVATE)
                     }
                 }
             }
@@ -155,6 +163,24 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             // Mark initialization as complete after first setup
             isInitializing = false
         }
+    }
+    
+    private fun animateTabModeTransition(targetMode: BrowserTabType) {
+        // Fade out current content
+        binding.tabsRecyclerView.animate()
+            .alpha(0f)
+            .setDuration(150)
+            .withEndAction {
+                // Switch mode in the middle of animation
+                switchToTabMode(targetMode)
+                
+                // Fade in new content
+                binding.tabsRecyclerView.animate()
+                    .alpha(1f)
+                    .setDuration(150)
+                    .start()
+            }
+            .start()
     }
     
     private fun switchToTabMode(targetMode: BrowserTabType) {
@@ -267,8 +293,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         // Remove the tab
         requireContext().components.tabsUseCases.removeTab(tab.id)
         
-        // Immediately update the display to show the tab was closed
-        updateTabsDisplay()
+        // Force immediate refresh of the tab list
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            updateTabsDisplay()
+        }
         
         // Handle app exit if no tabs left
         if (tabs.size == 1) {

@@ -9,6 +9,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.content.ContextCompat
 import com.cookiejarapps.android.smartcookieweb.R
+import com.cookiejarapps.android.smartcookieweb.ext.components
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import mozilla.components.browser.state.state.TabSessionState
 import mozilla.components.browser.tabstray.TabViewHolder
 import mozilla.components.browser.tabstray.TabsTrayStyling
@@ -58,7 +62,19 @@ class TabListViewHolder(
 
         updateSelectedTabIndicator(isSelected)
 
-        iconView?.setImageBitmap(tab.content.icon)
+        // Set favicon - check cache if tab icon is null
+        if (tab.content.icon != null) {
+            iconView?.setImageBitmap(tab.content.icon)
+        } else {
+            // Check favicon cache for this URL
+            iconView?.setImageBitmap(null) // Clear first
+            CoroutineScope(Dispatchers.Main).launch {
+                val cachedIcon = itemView.context.components.faviconCache.loadFavicon(tab.content.url)
+                if (cachedIcon != null) {
+                    iconView?.setImageBitmap(cachedIcon)
+                }
+            }
+        }
     }
 
     override fun updateSelectedTabIndicator(showAsSelected: Boolean) {

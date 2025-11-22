@@ -58,6 +58,8 @@ import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import com.cookiejarapps.android.smartcookieweb.request.AppRequestInterceptor
 import com.cookiejarapps.android.smartcookieweb.share.SaveToPDFMiddleware
 import com.cookiejarapps.android.smartcookieweb.utils.ClipboardHandler
+import com.cookiejarapps.android.smartcookieweb.utils.FaviconCache
+import com.cookiejarapps.android.smartcookieweb.middleware.FaviconMiddleware
 import mozilla.components.browser.engine.gecko.ext.toContentBlockingSetting
 import mozilla.components.browser.engine.gecko.permission.GeckoSitePermissionsStorage
 import mozilla.components.concept.engine.EngineSession
@@ -85,6 +87,8 @@ open class Components(private val applicationContext: Context) {
     val publicSuffixList by lazy { PublicSuffixList(applicationContext) }
 
     val clipboardHandler by lazy { ClipboardHandler(applicationContext) }
+
+    val faviconCache by lazy { FaviconCache.getInstance(applicationContext) }
 
     val fileSizeFormatter by lazy { DefaultFileSizeFormatter(applicationContext) }
 
@@ -169,6 +173,7 @@ open class Components(private val applicationContext: Context) {
                         DownloadMiddleware(applicationContext, DownloadService::class.java, { true }),
                         ReaderViewMiddleware(),
                         ThumbnailsMiddleware(thumbnailStorage),
+                        FaviconMiddleware(faviconCache),
                         UndoMiddleware(),
                         RegionMiddleware(
                                 applicationContext,

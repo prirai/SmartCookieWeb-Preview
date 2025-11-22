@@ -1,46 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:paddingTop="16dp">
+    android:layout_height="match_parent">
 
     <!-- Handle indicator for bottom sheet -->
     <View
         android:id="@+id/dragHandle"
         android:layout_width="32dp"
         android:layout_height="4dp"
-        android:layout_marginTop="8dp"
-        android:background="?android:attr/textColorSecondary"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- Spacer for top margin -->
-    <View
-        android:id="@+id/topSpacer"
-        android:layout_width="match_parent"
-        android:layout_height="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dragHandle" />
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="24dp"
+        android:background="?android:attr/textColorSecondary" />
 
     <!-- Tab mode toggle (Normal/Private) -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabModeToggle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_below="@id/dragHandle"
+        android:layout_marginTop="32dp"
         android:layout_marginHorizontal="16dp"
         app:tabGravity="fill"
         app:tabMode="fixed"
         app:tabIndicatorColor="?attr/colorPrimary"
         app:tabSelectedTextColor="?attr/colorPrimary"
         app:tabTextColor="?android:attr/textColorSecondary"
-        app:tabIconTint="?attr/colorPrimary"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/topSpacer">
+        app:tabIconTint="?attr/colorPrimary">
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
@@ -61,47 +47,37 @@
         android:id="@+id/newTabButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@id/tabModeToggle"
         android:layout_marginTop="16dp"
         android:layout_marginHorizontal="16dp"
         android:text="@string/new_tab"
         android:drawableStart="@drawable/ic_round_add"
         android:drawablePadding="8dp"
-        style="@style/Widget.Material3.Button.TonalButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tabModeToggle" />
+        style="@style/Widget.Material3.Button.TonalButton" />
 
     <!-- Tabs RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tabsRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="400dp"
+        android:layout_below="@id/newTabButton"
         android:layout_marginTop="16dp"
         android:paddingHorizontal="8dp"
         android:paddingBottom="16dp"
         android:clipToPadding="false"
-        android:minHeight="200dp"
-        android:maxHeight="400dp"
-        android:nestedScrollingEnabled="true"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/newTabButton"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        android:nestedScrollingEnabled="true" />
 
     <!-- Empty state when no tabs -->
     <LinearLayout
         android:id="@+id/emptyStateLayout"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="400dp"
+        android:layout_below="@id/newTabButton"
+        android:layout_centerHorizontal="true"
         android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"
         android:orientation="vertical"
         android:gravity="center"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/newTabButton">
+        android:visibility="gone">
 
         <ImageView
             android:layout_width="64dp"
@@ -131,4 +107,4 @@
 
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>
