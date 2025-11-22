@@ -116,7 +116,7 @@ class BrowserToolbarView(
                     if (UserPreferences(context).showUrlProtocol) {
                             url -> url
                     } else {
-                            url -> toDisplayUrl(url)
+                            url -> smartUrlDisplay(url)
                     }
 
                 display.colors = display.colors.copy(
@@ -244,6 +244,59 @@ class BrowserToolbarView(
             this is ToolbarMenu.Item.Forward && this.viewHistory
         ) {
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
+    }
+
+    /**
+     * Smart URL display that shows base domain + shortened path
+     * Example: https://en.wikipedia.org/wiki/Sarojini_Naidu -> en.wikipedia.org/w/Sarojini_Naidu
+     */
+    private fun smartUrlDisplay(url: CharSequence): CharSequence {
+        return try {
+            val uri = android.net.Uri.parse(url.toString())
+            val host = uri.host ?: return toDisplayUrl(url)
+            val path = uri.path ?: return host
+            
+            // Remove protocol and www prefix for display
+            val cleanHost = host.removePrefix("www.")
+            
+            if (path == "/" || path.isEmpty()) {
+                return cleanHost
+            }
+            
+            // Smart path shortening logic: abbreviate path segments to first letter
+            val pathSegments = path.split("/").filter { it.isNotEmpty() }
+            
+            when {
+                // Handle Wikipedia URLs: /wiki/Article_Name -> /w/Article_Name
+                pathSegments.size >= 2 && pathSegments[0] == "wiki" -> {
+                    "$cleanHost/w/${pathSegments[1]}"
+                }
+                // Handle paths with 2 or more segments: abbreviate middle segments to first letter
+                pathSegments.size >= 2 -> {
+                    val abbreviatedSegments = mutableListOf<String>()
+                    
+                    // First segment: abbreviate to first letter
+                    abbreviatedSegments.add(pathSegments[0].take(1))
+                    
+                    // Middle segments: abbreviate to first letter 
+                    for (i in 1 until pathSegments.size - 1) {
+                        abbreviatedSegments.add(pathSegments[i].take(1))
+                    }
+                    
+                    // Last segment: keep full name
+                    abbreviatedSegments.add(pathSegments.last())
+                    
+                    "$cleanHost/${abbreviatedSegments.joinToString("/")}"
+                }
+                // Show full path for single segment
+                else -> {
+                    "$cleanHost$path"
+                }
+            }
+        } catch (e: Exception) {
+            // Fallback to original toDisplayUrl function
+            toDisplayUrl(url)
         }
     }
 }

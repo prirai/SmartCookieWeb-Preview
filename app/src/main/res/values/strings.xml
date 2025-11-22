@@ -144,7 +144,7 @@
 
   <string name="hide_url_bar">Hide URL bar while scrolling</string>
 
-  <string name="search">Search</string>
+  <string name="search">Search or enter address</string>
   <string name="no_results">No results</string>
 
   <string name="bookmark">Bookmark</string>

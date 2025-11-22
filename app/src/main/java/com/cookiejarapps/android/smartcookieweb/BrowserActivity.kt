@@ -174,9 +174,23 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
                 WindowInsetsCompat.Type.systemBars()
                         or WindowInsetsCompat.Type.displayCutout()
             )
-            // Only apply top padding (status bar space) when using top toolbar
-            // to prevent black bar when using bottom toolbar
-            val topPadding = if (UserPreferences(this).shouldUseBottomToolbar) 0 else bars.top
+            // Force zero top padding when using bottom toolbar
+            val isBottomToolbar = UserPreferences(this).shouldUseBottomToolbar
+            val topPadding = if (isBottomToolbar) {
+                0 // No top padding for bottom toolbar to enable immersive content
+            } else {
+                bars.top // Normal status bar padding for top toolbar
+            }
+            
+            // Dynamic status bar based on toolbar position
+            if (isBottomToolbar) {
+                enableDynamicStatusBar()
+                // CRITICAL: Hide navigation toolbar stub to prevent 140px space
+                hideNavigationToolbarForBottomMode()
+            } else {
+                window.statusBarColor = getColor(R.color.statusbar_background)
+                androidx.core.view.WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = true
+            }
             
             v.updatePadding(
                 left = bars.left,
@@ -420,6 +434,41 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
         this.originalContext = base
         super.attachBaseContext(base)
     }
+
+    /**
+     * Hide navigation toolbar completely for bottom toolbar mode
+     */
+    private fun hideNavigationToolbarForBottomMode() {
+        // Hide the ViewStub itself to prevent any space reservation
+        binding.navigationToolbarStub.visibility = android.view.View.GONE
+        binding.navigationToolbarStub.layoutParams?.height = 0
+        
+        // If already inflated, hide the toolbar
+        if (isToolbarInflated) {
+            navigationToolbar.visibility = android.view.View.GONE
+            navigationToolbar.layoutParams?.height = 0
+        }
+    }
+
+    /**
+     * Simple transparent status bar - let content extend behind it
+     */
+    private fun enableDynamicStatusBar() {
+        // Simple approach: transparent status bar, content behind it
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        
+        // Enable content to draw behind status bar
+        window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        )
+        
+        // Make status bar icons visible
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true // Dark icons for better visibility
+        }
+    }
+
 
     companion object {
         const val OPEN_TO_BROWSER = "open_to_browser"
