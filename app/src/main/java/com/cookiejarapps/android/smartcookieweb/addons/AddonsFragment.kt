@@ -412,7 +412,7 @@ class AddonsFragment : Fragment(), AddonsManagerAdapterDelegate {
 
     private val onConfirmInstallationButtonClicked: ((Addon) -> Unit) = {  }
 
-    private val onConfirmPermissionButtonClicked: ((Addon, Boolean) -> Unit) = { addon, allowInPrivateBrowsing ->
+    private val onConfirmPermissionButtonClicked: ((Addon, Boolean, Boolean) -> Unit) = { addon, allowInPrivateBrowsing, dataCollectionPermissions ->
         binding.addonProgressOverlay.root.visibility = View.VISIBLE
         isInstallationInProgress = true
 

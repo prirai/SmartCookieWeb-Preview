@@ -69,7 +69,7 @@ import mozilla.components.lib.state.ext.consumeFrom
 import mozilla.components.ui.tabcounter.TabCounterMenu
 import org.mozilla.gecko.util.ThreadUtils
 import java.lang.ref.WeakReference
-import mozilla.components.ui.widgets.behavior.ToolbarPosition as OldToolbarPosition
+import mozilla.components.ui.widgets.behavior.ViewPosition as OldToolbarPosition
 
 
 @ExperimentalCoroutinesApi

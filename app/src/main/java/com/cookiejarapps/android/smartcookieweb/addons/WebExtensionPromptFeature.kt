@@ -254,7 +254,7 @@ class WebExtensionPromptFeature(
                 gravity = Gravity.BOTTOM,
                 shouldWidthMatchParent = true,
             ),
-            onPositiveButtonClicked = { _, privateBrowsingAllowed ->
+            onPositiveButtonClicked = { _, privateBrowsingAllowed, dataCollectionPermissions ->
                 handlePermissions(
                     promptRequest,
                     granted = true,
@@ -268,6 +268,7 @@ class WebExtensionPromptFeature(
                     privateBrowsingAllowed = false,
                 )
             },
+            dataCollectionPermissions = emptyList(),
         )
 
         dialog.show(
@@ -299,7 +300,7 @@ class WebExtensionPromptFeature(
 
     private fun tryToReAttachButtonHandlersToPreviousDialog() {
         findPreviousDialogFragment()?.let { dialog ->
-            dialog.onPositiveButtonClicked = { addon, privateBrowsingAllowed ->
+            dialog.onPositiveButtonClicked = { addon, privateBrowsingAllowed, dataCollectionPermissions ->
                 store.state.webExtensionPromptRequest?.let { promptRequest ->
                     if (promptRequest is WebExtensionPromptRequest.AfterInstallation.Permissions
                     ) {

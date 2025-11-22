@@ -32,6 +32,7 @@ import mozilla.components.feature.app.links.AppLinksUseCases
 import mozilla.components.feature.contextmenu.ContextMenuUseCases
 import mozilla.components.feature.downloads.DownloadMiddleware
 import mozilla.components.feature.downloads.DownloadsUseCases
+import mozilla.components.feature.downloads.DownloadEstimator
 import mozilla.components.feature.media.MediaSessionFeature
 import mozilla.components.feature.media.middleware.RecordingDevicesMiddleware
 import mozilla.components.feature.pwa.ManifestStorage
@@ -88,6 +89,8 @@ open class Components(private val applicationContext: Context) {
     val fileSizeFormatter by lazy { DefaultFileSizeFormatter(applicationContext) }
 
     val dateTimeProvider by lazy { DefaultDateTimeProvider() }
+
+    val downloadEstimator by lazy { DownloadEstimator(dateTimeProvider) }
 
     val preferences: SharedPreferences =
             applicationContext.getSharedPreferences(BROWSER_PREFERENCES, Context.MODE_PRIVATE)

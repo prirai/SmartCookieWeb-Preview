@@ -10,7 +10,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.navigation.NavOptions
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import kotlinx.coroutines.launch
-import mozilla.components.ui.widgets.behavior.ToolbarPosition as OldToolbarPosition
+import mozilla.components.ui.widgets.behavior.ViewPosition as OldToolbarPosition
 import mozilla.components.concept.engine.EngineView
 import java.lang.ref.WeakReference
 

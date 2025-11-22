@@ -88,7 +88,7 @@ import mozilla.components.support.utils.ext.requestInPlacePermissions
 import com.cookiejarapps.android.smartcookieweb.browser.home.SharedViewModel
 import java.lang.ref.WeakReference
 import mozilla.components.ui.widgets.behavior.EngineViewClippingBehavior as OldEngineViewClippingBehavior
-import mozilla.components.ui.widgets.behavior.ToolbarPosition as OldToolbarPosition
+import mozilla.components.ui.widgets.behavior.ViewPosition as OldToolbarPosition
 
 /**
  * Base fragment extended by [BrowserFragment].
@@ -596,7 +596,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                     null,
                     binding.swipeRefresh,
                     toolbarHeight,
-                    toolbarPosition
+                    toolbarPosition.ordinal
                 )
         } else {
             binding.engineView.setDynamicToolbarMaxHeight(0)
