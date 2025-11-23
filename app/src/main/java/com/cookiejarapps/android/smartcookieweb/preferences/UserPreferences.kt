@@ -47,7 +47,8 @@ class UserPreferences(appContext: Context): PreferencesHolder {
     var stackFromBottom by booleanPreference(STACK_FROM_BOTTOM, false)
     var showTabsInGrid by booleanPreference(SHOW_TABS_IN_GRID, false)
     var swipeToRefresh by booleanPreference(SWIPE_TO_REFRESH, true)
-    var remoteDebugging by booleanPreference(REMOTE_DEBUGGING, false)
+    // SECURITY: Remote debugging disabled for production security
+    // var remoteDebugging by booleanPreference(REMOTE_DEBUGGING, false)
     var promptExternalDownloader by booleanPreference(PROMPT_EXTERNAL_DOWNLOADER, false)
     var addonSort by intPreference(WEB_THEME_CHOICE, AddonSortType.RATING.ordinal)
     var showUrlProtocol by booleanPreference(SHOW_URL_PROTOCOL, false)
@@ -56,7 +57,8 @@ class UserPreferences(appContext: Context): PreferencesHolder {
     var trackingProtection by booleanPreference(TRACKING_PROTECTION, true)
     var showShortcuts by booleanPreference(SHOW_SHORTCUTS, true)
     var loadShortcutIcons by booleanPreference(LOAD_SHORTCUT_ICONS, true)
-    var trustThirdPartyCerts by booleanPreference(TRUST_THIRD_PARTY_CERTS, false)
+    // SECURITY: Third-party certificate trust disabled for security
+    // var trustThirdPartyCerts by booleanPreference(TRUST_THIRD_PARTY_CERTS, false)
     var barAddonsList by stringPreference(BAR_ADDONS_LIST, "")
     var bookmarkSortType by intPreference(BOOKMARK_SORT_TYPE, BookmarkSortType.MANUAL.ordinal)
 

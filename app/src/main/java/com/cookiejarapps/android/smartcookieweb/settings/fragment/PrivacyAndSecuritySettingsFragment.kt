@@ -17,7 +17,6 @@ import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mozilla.components.concept.engine.Engine
@@ -58,7 +57,8 @@ class PrivacyAndSecuritySettingsFragment : BaseSettingsFragment() {
             .setTitle(resources.getString(R.string.clear_tabs))
             .setNegativeButton(resources.getString(R.string.cancel)) { _, _ -> }
             .setPositiveButton(resources.getString(R.string.mozac_feature_prompts_ok)) { _, _ ->
-                GlobalScope.launch{
+                // SECURITY: Use lifecycle-aware coroutine scope
+                lifecycleScope.launch {
                     requireContext().components.tabsUseCases.removeAllTabs.invoke()
                 }
                 Toast.makeText(context, R.string.tabs_cleared, Toast.LENGTH_LONG).show()
@@ -93,7 +93,8 @@ class PrivacyAndSecuritySettingsFragment : BaseSettingsFragment() {
         }
 
         layout.findViewById<Button>(R.id.clearButton).setOnClickListener {
-            GlobalScope.launch{
+            // SECURITY: Use lifecycle-aware coroutine scope
+            lifecycleScope.launch {
                 requireContext().components.historyStorage.deleteVisitsSince(timeArray[spinner.selectedItemPosition])
             }
             Toast.makeText(context, R.string.history_cleared, Toast.LENGTH_LONG).show()
@@ -126,7 +127,8 @@ class PrivacyAndSecuritySettingsFragment : BaseSettingsFragment() {
         requireContext().components.engine.clearData(
             Engine.BrowsingData.select(Engine.BrowsingData.PERMISSIONS)
         )
-        GlobalScope.launch { components.permissionStorage.removeAll() }
+        // SECURITY: Use lifecycle-aware coroutine scope
+        lifecycleScope.launch { components.permissionStorage.removeAll() }
         Toast.makeText(context, R.string.permissions_cleared, Toast.LENGTH_LONG).show()
     }
 }

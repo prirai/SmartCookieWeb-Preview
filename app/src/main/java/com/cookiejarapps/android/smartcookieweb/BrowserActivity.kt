@@ -38,7 +38,7 @@ import com.cookiejarapps.android.smartcookieweb.search.SearchDialogFragmentDirec
 import com.cookiejarapps.android.smartcookieweb.settings.ThemeChoice
 import com.cookiejarapps.android.smartcookieweb.theme.applyAppTheme
 import com.cookiejarapps.android.smartcookieweb.utils.Utils
-import kotlinx.coroutines.GlobalScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import mozilla.components.browser.icons.IconRequest
 import mozilla.components.browser.state.search.SearchEngine
@@ -127,7 +127,8 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
         }
 
         if(UserPreferences(this).customSearchEngine){
-            GlobalScope.launch {
+            // SECURITY: Use lifecycle-aware coroutine scope
+            lifecycleScope.launch {
                 val customSearch =
                     createSearchEngine(
                         name = "Custom Search",

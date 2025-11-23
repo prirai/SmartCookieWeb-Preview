@@ -43,28 +43,22 @@ class AdvancedSettingsFragment : BaseSettingsFragment() {
             onClick = { sideloadXpi() }
         )
 
+        // SECURITY: Remote debugging disabled for security
         switchPreference(
                 preference = requireContext().resources.getString(R.string.key_remote_debugging),
-                isChecked = UserPreferences(requireContext()).remoteDebugging
+                isChecked = false,
+                isEnabled = false
         ) {
-            UserPreferences(requireContext()).remoteDebugging = it
-            Toast.makeText(
-                        context,
-                        requireContext().resources.getText(R.string.app_restart),
-                        Toast.LENGTH_LONG
-                ).show()
+            // Disabled for security reasons
         }
 
+        // SECURITY: Third-party certificate trust disabled for security
         switchPreference(
             preference = requireContext().resources.getString(R.string.key_trust_third_party_certs),
-            isChecked = UserPreferences(requireContext()).trustThirdPartyCerts
+            isChecked = false,
+            isEnabled = false
         ) {
-            UserPreferences(requireContext()).trustThirdPartyCerts = it
-            Toast.makeText(
-                context,
-                requireContext().resources.getText(R.string.app_restart),
-                Toast.LENGTH_LONG
-            ).show()
+            // Disabled for security reasons
         }
 
         switchPreference(

@@ -46,18 +46,41 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // Configure bottom sheet to fixed 60% height - no dragging
-        val bottomSheetDialog = dialog as com.google.android.material.bottomsheet.BottomSheetDialog
-        bottomSheetDialog.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EXPANDED
-        bottomSheetDialog.behavior.isDraggable = false
-        bottomSheetDialog.behavior.isFitToContents = true
-        bottomSheetDialog.behavior.halfExpandedRatio = 0.6f
-        bottomSheetDialog.behavior.skipCollapsed = true
-        
         setupUI()
         setupTabsAdapter()
         // Only update display after adapter is set up
         updateTabsDisplay()
+    }
+    
+    override fun onStart() {
+        super.onStart()
+        
+        // Configure bottom sheet to prevent premature dismissal
+        val bottomSheetDialog = dialog as com.google.android.material.bottomsheet.BottomSheetDialog
+        val behavior = bottomSheetDialog.behavior
+        
+        // Set fixed height to 80% of screen height
+        val screenHeight = resources.displayMetrics.heightPixels
+        val desiredHeight = (screenHeight * 0.8).toInt()
+        
+        behavior.isFitToContents = false
+        behavior.peekHeight = desiredHeight
+        behavior.expandedOffset = screenHeight - desiredHeight
+        behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        behavior.skipCollapsed = true
+        behavior.isHideable = true
+        behavior.isDraggable = false  // Completely disable dragging to prevent accidental dismissal
+        
+        // Set the bottom sheet to exact height we want
+        bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
+            val layoutParams = bottomSheet.layoutParams
+            layoutParams.height = desiredHeight
+            bottomSheet.layoutParams = layoutParams
+        }
+        
+        // Prevent dismissal on outside touch while interacting
+        bottomSheetDialog.setCancelable(true)
+        bottomSheetDialog.setCanceledOnTouchOutside(true)
     }
     
     private fun setupUI() {
@@ -128,6 +151,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         }
         
         binding.tabsRecyclerView.layoutManager = layoutManager
+        
+        // Disable nested scrolling to prevent conflicts with bottom sheet
+        binding.tabsRecyclerView.isNestedScrollingEnabled = false
+        binding.tabsRecyclerView.setHasFixedSize(true) // Optimize performance
     }
     
     private fun updateTabsDisplay() {
@@ -284,28 +311,84 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }
         if (selectedIndex == -1) return
         
-        // Post to ensure RecyclerView is laid out before scrolling
-        binding.tabsRecyclerView.post {
+        // Post with delay to ensure RecyclerView is fully laid out before scrolling
+        binding.tabsRecyclerView.postDelayed({
             val layoutManager = binding.tabsRecyclerView.layoutManager
+            val recyclerView = binding.tabsRecyclerView
             
-            when (layoutManager) {
-                is LinearLayoutManager -> {
-                    // Calculate position to center the selected tab
-                    val visibleItemCount = layoutManager.childCount
-                    val centerOffset = (visibleItemCount / 2).coerceAtLeast(0)
-                    
-                    // Scroll to position that centers the selected tab
-                    val targetPosition = when {
-                        selectedIndex < centerOffset -> 0 // Near beginning - show from start
-                        selectedIndex >= tabs.size - centerOffset -> tabs.size - visibleItemCount // Near end - show last items
-                        else -> selectedIndex - centerOffset // Middle - center the selected tab
-                    }.coerceAtLeast(0)
-                    
-                    layoutManager.scrollToPositionWithOffset(targetPosition, 0)
+            // Safety check - ensure we have children
+            if (recyclerView.childCount == 0) {
+                // Retry once more after items are laid out
+                recyclerView.postDelayed({
+                    scrollToSelectedTabInternal(tabs, selectedTabId, selectedIndex)
+                }, 50)
+                return@postDelayed
+            }
+            
+            scrollToSelectedTabInternal(tabs, selectedTabId, selectedIndex)
+        }, 100) // Small delay to ensure layout is complete
+    }
+    
+    private fun scrollToSelectedTabInternal(tabs: List<TabSessionState>, selectedTabId: String?, selectedIndex: Int) {
+        val layoutManager = binding.tabsRecyclerView.layoutManager
+        val recyclerView = binding.tabsRecyclerView
+        
+        when (layoutManager) {
+            is LinearLayoutManager -> {
+                // Get RecyclerView height accounting for padding
+                val recyclerViewHeight = recyclerView.height - recyclerView.paddingTop - recyclerView.paddingBottom
+                val itemHeight = recyclerView.getChildAt(0)?.height ?: 120
+                
+                // Calculate how many items can be fully visible at once
+                val visibleItemCount = (recyclerViewHeight / itemHeight).coerceAtLeast(1)
+                
+                // Always try to center the selected item, but ensure it's fully visible
+                val topOffset = (recyclerViewHeight / 2) - (itemHeight / 2)
+                
+                when {
+                    selectedIndex <= 2 -> {
+                        // Near beginning - show from start with some top padding
+                        layoutManager.scrollToPositionWithOffset(0, recyclerView.paddingTop / 2)
+                    }
+                    selectedIndex >= tabs.size - 3 -> {
+                        // Near end - ensure last items are fully visible with bottom padding
+                        val lastPosition = tabs.size - 1
+                        val bottomOffset = -(recyclerViewHeight - (itemHeight * visibleItemCount.coerceAtMost(tabs.size)))
+                        layoutManager.scrollToPositionWithOffset(lastPosition, bottomOffset.coerceAtMost(0))
+                    }
+                    else -> {
+                        // Middle - center the selected tab with proper offset
+                        layoutManager.scrollToPositionWithOffset(selectedIndex, topOffset)
+                    }
                 }
-                is GridLayoutManager -> {
-                    // For grid layout, just scroll to position (basic implementation)
-                    layoutManager.scrollToPosition(selectedIndex)
+            }
+            is GridLayoutManager -> {
+                // For grid layout, calculate row-based centering with padding
+                val spanCount = layoutManager.spanCount
+                val selectedRow = selectedIndex / spanCount
+                val totalRows = (tabs.size + spanCount - 1) / spanCount
+                
+                val itemHeight = recyclerView.getChildAt(0)?.height ?: 140
+                val recyclerViewHeight = recyclerView.height - recyclerView.paddingTop - recyclerView.paddingBottom
+                val visibleRowCount = (recyclerViewHeight / itemHeight).coerceAtLeast(1)
+                
+                when {
+                    selectedRow <= 1 -> {
+                        // Near beginning
+                        layoutManager.scrollToPositionWithOffset(0, recyclerView.paddingTop / 2)
+                    }
+                    selectedRow >= totalRows - 2 -> {
+                        // Near end
+                        val lastRowPosition = ((totalRows - 1) * spanCount).coerceAtMost(tabs.size - 1)
+                        val bottomOffset = -(recyclerViewHeight - (itemHeight * visibleRowCount.coerceAtMost(totalRows)))
+                        layoutManager.scrollToPositionWithOffset(lastRowPosition, bottomOffset.coerceAtMost(0))
+                    }
+                    else -> {
+                        // Center the selected row
+                        val centerOffset = (recyclerViewHeight / 2) - (itemHeight / 2)
+                        val targetPosition = selectedRow * spanCount
+                        layoutManager.scrollToPositionWithOffset(targetPosition, centerOffset)
+                    }
                 }
             }
         }

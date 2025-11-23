@@ -123,9 +123,9 @@ open class Components(private val applicationContext: Context) {
         DefaultSettings().apply {
             historyTrackingDelegate = HistoryDelegate(lazyHistoryStorage)
             requestInterceptor = appRequestInterceptor
-            remoteDebuggingEnabled = UserPreferences(applicationContext).remoteDebugging
+            remoteDebuggingEnabled = false // SECURITY: Remote debugging disabled
             supportMultipleWindows = true
-            enterpriseRootsEnabled = UserPreferences(applicationContext).trustThirdPartyCerts
+            enterpriseRootsEnabled = false // SECURITY: Third-party certs disabled
             if(!UserPreferences(applicationContext).autoFontSize){
                 fontSizeFactor = UserPreferences(applicationContext).fontSizeFactor
                 automaticFontSizeAdjustment = false
@@ -283,7 +283,7 @@ open class Components(private val applicationContext: Context) {
         val runtimeSettings = builder
             .aboutConfigEnabled(true)
             .extensionsProcessEnabled(true)
-            .debugLogging(BuildConfig.DEBUG)
+            .debugLogging(false) // SECURITY: Debug logging disabled
             .extensionsWebAPIEnabled(true)
             .contentBlocking(trackingPolicy.toContentBlockingSetting())
             .build()

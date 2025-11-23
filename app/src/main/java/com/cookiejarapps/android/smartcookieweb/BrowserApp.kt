@@ -5,7 +5,8 @@ import android.app.Application
 import com.cookiejarapps.android.smartcookieweb.components.Components
 import com.cookiejarapps.android.smartcookieweb.theme.applyAppTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import mozilla.components.browser.state.action.SystemAction
 import mozilla.components.browser.state.selector.selectedTab
@@ -22,6 +23,9 @@ import java.util.concurrent.TimeUnit
 class BrowserApp : LocaleAwareApplication() {
 
     private val logger = Logger("BrowserApp")
+    
+    // SECURITY: Use proper application scope instead of GlobalScope
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     val components by lazy { Components(this) }
 
@@ -39,7 +43,7 @@ class BrowserApp : LocaleAwareApplication() {
 
         applyAppTheme(this)
 
-        GlobalScope.launch(Dispatchers.IO) {
+        applicationScope.launch(Dispatchers.IO) {
             components.webAppManifestStorage.warmUpScopes(System.currentTimeMillis())
         }
         components.downloadsUseCases.restoreDownloads()
@@ -82,7 +86,7 @@ class BrowserApp : LocaleAwareApplication() {
         }
     }
 
-    private fun restoreBrowserState() = GlobalScope.launch(Dispatchers.Main) {
+    private fun restoreBrowserState() = applicationScope.launch(Dispatchers.Main) {
         components.tabsUseCases.restore(components.sessionStorage)
 
         components.sessionStorage.autoSave(components.store)

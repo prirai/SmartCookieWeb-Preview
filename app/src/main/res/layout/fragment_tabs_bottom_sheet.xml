@@ -59,19 +59,22 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tabsRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="400dp"
+        android:layout_height="match_parent"
         android:layout_below="@id/newTabButton"
         android:layout_marginTop="16dp"
+        android:layout_marginBottom="32dp"
         android:paddingHorizontal="8dp"
-        android:paddingBottom="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="64dp"
         android:clipToPadding="false"
-        android:nestedScrollingEnabled="true" />
+        android:nestedScrollingEnabled="false"
+        android:overScrollMode="never" />
 
     <!-- Empty state when no tabs -->
     <LinearLayout
         android:id="@+id/emptyStateLayout"
         android:layout_width="wrap_content"
-        android:layout_height="400dp"
+        android:layout_height="match_parent"
         android:layout_below="@id/newTabButton"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="32dp"
