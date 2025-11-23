@@ -58,4 +58,7 @@
     <color name="icon_inside_13">#333</color>
     <color name="icon_inside_14">#cd00ea</color>
     <color name="icon_inside_15">#03A9F4</color>
+    
+    <!-- Tab group colors -->
+    <color name="tab_group_pink">#E91E63</color>
 </resources>

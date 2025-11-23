@@ -90,6 +90,10 @@ open class Components(private val applicationContext: Context) {
 
     val faviconCache by lazy { FaviconCache.getInstance(applicationContext) }
 
+    val tabGroupManager by lazy { 
+        com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupManager(applicationContext) 
+    }
+
     val fileSizeFormatter by lazy { DefaultFileSizeFormatter(applicationContext) }
 
     val dateTimeProvider by lazy { DefaultDateTimeProvider() }
@@ -183,7 +187,8 @@ open class Components(private val applicationContext: Context) {
                         RecordingDevicesMiddleware(applicationContext, notificationsDelegate),
                         PromptMiddleware(),
                         LastAccessMiddleware(),
-                        SaveToPDFMiddleware(applicationContext)
+                        SaveToPDFMiddleware(applicationContext),
+                        com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupMiddleware(tabGroupManager)
                 ) + EngineMiddleware.create(
                     engine,
                     trimMemoryAutomatically = false,

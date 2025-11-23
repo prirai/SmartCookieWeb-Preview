@@ -2,6 +2,7 @@ package com.cookiejarapps.android.smartcookieweb.request
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.NavController
@@ -15,6 +16,9 @@ import com.cookiejarapps.android.smartcookieweb.browser.home.HomeFragmentDirecti
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import android.webkit.JavascriptInterface
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import mozilla.components.browser.errorpages.ErrorPages
 import mozilla.components.browser.errorpages.ErrorType
 import mozilla.components.concept.engine.EngineSession
@@ -416,6 +420,19 @@ class AppRequestInterceptor(val context: Context) : RequestInterceptor {
             </body>
             </html>
         """.trimIndent()
+    }
+
+    
+
+    /**
+     * Extract domain from URL for comparison.
+     */
+    private fun extractDomain(url: String): String {
+        return try {
+            Uri.parse(url).host?.replace("www.", "") ?: "unknown"
+        } catch (e: Exception) {
+            "unknown"
+        }
     }
 
     companion object {

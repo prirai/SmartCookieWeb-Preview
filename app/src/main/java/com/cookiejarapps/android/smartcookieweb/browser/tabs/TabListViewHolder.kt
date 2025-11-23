@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,8 @@ class TabListViewHolder(
     internal val titleView: TextView = itemView.findViewById(R.id.mozac_browser_tabstray_title)
     @VisibleForTesting
     internal val closeView: AppCompatImageButton = itemView.findViewById(R.id.mozac_browser_tabstray_close)
+    @VisibleForTesting
+    internal val groupIndicator: TextView? = itemView.findViewById(R.id.tabGroupIndicator)
 
     override var tab: TabSessionState? = null
 
@@ -54,6 +57,9 @@ class TabListViewHolder(
         }
 
         titleView.text = title
+
+        // Update group indicator
+        updateGroupIndicator(tab.id)
 
         itemView.setOnClickListener {
             delegate.onTabSelected(tab)
@@ -132,5 +138,26 @@ class TabListViewHolder(
             else -> R.drawable.tab_list_unselected_background
         }
         itemView.setBackgroundResource(backgroundResource)
+    }
+
+    private fun updateGroupIndicator(tabId: String) {
+        groupIndicator?.let { indicator ->
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    val tabGroupManager = itemView.context.components.tabGroupManager
+                    val groupName = tabGroupManager.getGroupNameForTab(tabId)
+                    
+                    if (groupName != null) {
+                        indicator.text = groupName
+                        indicator.isVisible = true
+                    } else {
+                        indicator.isVisible = false
+                    }
+                } catch (e: Exception) {
+                    // Fallback if tab groups not initialized
+                    indicator.isVisible = false
+                }
+            }
+        }
     }
 }

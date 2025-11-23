@@ -7,6 +7,8 @@ import com.cookiejarapps.android.smartcookieweb.browser.toolbar.WebExtensionTool
 import com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
 import com.cookiejarapps.android.smartcookieweb.databinding.FragmentBrowserBinding
 import com.cookiejarapps.android.smartcookieweb.ext.components
+import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupBar
+import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupWithTabs
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import androidx.lifecycle.lifecycleScope
@@ -91,6 +93,8 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         // Setup contextual bottom toolbar
         setupContextualBottomToolbar()
         
+        // Setup tab groups
+        setupTabGroups()
         
         // Observe tab changes for real-time toolbar updates
         observeTabChangesForToolbar()
@@ -283,4 +287,50 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             }
         }
     }
+    
+    private fun setupTabGroups() {
+        val tabGroupManager = requireContext().components.tabGroupManager
+        
+        binding.tabGroupBar.setup(
+            tabGroupManager = tabGroupManager,
+            lifecycleOwner = viewLifecycleOwner,
+            listener = object : TabGroupBar.TabGroupBarListener {
+                override fun onTabSelected(tabId: String) {
+                    // Switch to the selected tab
+                    android.util.Log.d("BrowserFragment", "Tab selected from group bar: $tabId")
+                    requireContext().components.tabsUseCases.selectTab(tabId)
+                    
+                    // The browser state observer will handle the visual update automatically
+                    // No need for manual refresh which can cause flickering
+                }
+            }
+        )
+        
+        // Auto-group new tabs
+        observeTabChangesForGrouping(tabGroupManager)
+    }
+    
+    private fun observeTabChangesForGrouping(tabGroupManager: com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupManager) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            requireContext().components.store.flowScoped { flow ->
+                flow.mapNotNull { state -> 
+                    if (!isAdded) return@mapNotNull null
+                    state.tabs.find { it.id == state.selectedTabId }
+                }
+                .collect { currentTab ->
+                    if (isAdded && currentTab.content.url.isNotBlank()) {
+                        // Auto-group the tab
+                        tabGroupManager.autoGroupTab(currentTab.id, currentTab.content.url)
+                        
+                        // Update current group based on the current tab
+                        val groupId = tabGroupManager.getGroupForTab(currentTab.id)
+                        if (groupId != null) {
+                            tabGroupManager.switchToGroup(groupId)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
 }

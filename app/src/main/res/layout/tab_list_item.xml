@@ -24,10 +24,27 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
+        android:id="@+id/tabGroupIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/tab_group_indicator_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@+id/mozac_browser_tabstray_icon"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
         android:id="@+id/mozac_browser_tabstray_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:gravity="center_vertical"
         android:padding="4dp"
@@ -36,7 +53,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/mozac_browser_tabstray_close"
         app:layout_constraintStart_toEndOf="@+id/mozac_browser_tabstray_icon"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/tabGroupIndicator"
+        app:layout_constraintVertical_bias="0.5" />
 
     <androidx.appcompat.widget.AppCompatImageButton
         android:id="@+id/mozac_browser_tabstray_close"
