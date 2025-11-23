@@ -146,6 +146,9 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         // Update adapter with proper method
         tabsAdapter.updateTabs(tabs, null, store.selectedTabId)
         
+        // Scroll to selected tab to center it in view
+        scrollToSelectedTab(tabs, store.selectedTabId)
+        
         // Show/hide empty state
         if (tabs.isEmpty()) {
             binding.tabsRecyclerView.visibility = View.GONE
@@ -275,6 +278,39 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         dismiss()
     }
     
+    private fun scrollToSelectedTab(tabs: List<TabSessionState>, selectedTabId: String?) {
+        if (selectedTabId == null || tabs.isEmpty()) return
+        
+        val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }
+        if (selectedIndex == -1) return
+        
+        // Post to ensure RecyclerView is laid out before scrolling
+        binding.tabsRecyclerView.post {
+            val layoutManager = binding.tabsRecyclerView.layoutManager
+            
+            when (layoutManager) {
+                is LinearLayoutManager -> {
+                    // Calculate position to center the selected tab
+                    val visibleItemCount = layoutManager.childCount
+                    val centerOffset = (visibleItemCount / 2).coerceAtLeast(0)
+                    
+                    // Scroll to position that centers the selected tab
+                    val targetPosition = when {
+                        selectedIndex < centerOffset -> 0 // Near beginning - show from start
+                        selectedIndex >= tabs.size - centerOffset -> tabs.size - visibleItemCount // Near end - show last items
+                        else -> selectedIndex - centerOffset // Middle - center the selected tab
+                    }.coerceAtLeast(0)
+                    
+                    layoutManager.scrollToPositionWithOffset(targetPosition, 0)
+                }
+                is GridLayoutManager -> {
+                    // For grid layout, just scroll to position (basic implementation)
+                    layoutManager.scrollToPosition(selectedIndex)
+                }
+            }
+        }
+    }
+
     private fun closeTab(tab: TabSessionState) {
         val store = requireContext().components.store.state
         val tabs = if (configuration.browserTabType == BrowserTabType.NORMAL) {

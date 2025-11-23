@@ -97,6 +97,9 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Switch from splash theme to regular theme immediately
+        setTheme(R.style.AppThemeNotActionBar)
+        
         super.onCreate(savedInstanceState)
 
         components.publicSuffixList.prefetch()

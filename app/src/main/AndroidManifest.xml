@@ -36,6 +36,7 @@
     android:theme="@style/AppThemeNotActionBar">
 
     <activity android:name=".BrowserActivity"
+        android:theme="@style/SplashTheme"
         android:launchMode="singleTask"
         android:resizeableActivity="true"
         android:supportsPictureInPicture="true"
