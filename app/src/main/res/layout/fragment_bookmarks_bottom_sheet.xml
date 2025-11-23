@@ -64,10 +64,21 @@
             app:tint="?android:attr/textColorPrimary" />
 
         <ImageButton
-            android:id="@+id/sortBookmarksButton"
+            android:id="@+id/addFolderButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_toStartOf="@id/addBookmarkButton"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_baseline_create_new_folder"
+            android:contentDescription="@string/create_folder"
+            app:tint="?android:attr/textColorPrimary" />
+
+        <ImageButton
+            android:id="@+id/sortBookmarksButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_toStartOf="@id/addFolderButton"
             android:layout_centerVertical="true"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_baseline_sort"

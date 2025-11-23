@@ -65,11 +65,28 @@ abstract class AddBookmarkDialog<S : BookmarkItem, T>(
             mParent = root
             folderButton.text = root.title
             folderButton.setOnClickListener { v ->
-                BookmarkFoldersDialog(context, mManager)
-                    .setTitle(R.string.folder)
-                    .setCurrentFolder(root)
-                    .setOnFolderSelectedListener(this@AddBookmarkDialog)
-                    .show()
+                // Show modern folder selection bottom sheet
+                val folderSelectionSheet = FolderSelectionBottomSheetFragment.newInstance()
+                    .setManager(mManager)
+                    .setInitialFolder(root)
+                    .setOnFolderSelectedListener { selectedFolder ->
+                        onFolderSelected(mDialog, selectedFolder)
+                    }
+                
+                // Show the bottom sheet (need fragment manager from context)
+                android.util.Log.d("AddBookmarkDialog", "Context type: ${context::class.java.simpleName}")
+                if (context is androidx.fragment.app.FragmentActivity) {
+                    android.util.Log.d("AddBookmarkDialog", "Showing modern folder selection bottom sheet")
+                    folderSelectionSheet.show(context.supportFragmentManager, "FolderSelectionBottomSheet")
+                } else {
+                    android.util.Log.d("AddBookmarkDialog", "Context is not FragmentActivity, falling back to old dialog")
+                    // Fallback to old dialog if context isn't FragmentActivity
+                    BookmarkFoldersDialog(context, mManager)
+                        .setTitle(R.string.folder)
+                        .setCurrentFolder(root)
+                        .setOnFolderSelectedListener(this@AddBookmarkDialog)
+                        .show()
+                }
             }
         } else {
             folderTextView.visibility = View.GONE

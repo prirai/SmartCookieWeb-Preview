@@ -92,6 +92,11 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
             showAddBookmarkDialog()
         }
         
+        binding.addFolderButton.setOnClickListener {
+            // Show add folder dialog
+            showAddFolderDialog()
+        }
+        
         binding.sortBookmarksButton.setOnClickListener {
             // Show sort options dialog
             showSortDialog()
@@ -120,6 +125,22 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
             // Save changes to persistent storage
             manager.save()
             // Refresh the bookmark list after adding
+            setBookmarkList(currentFolder)
+        }
+        dialog.show()
+    }
+
+    private fun showAddFolderDialog() {
+        // Show add folder dialog - create new folder in current folder
+        val dialog = AddBookmarkFolderDialog(
+            context = requireContext(),
+            mManager = manager,
+            title = null, // Empty title for new folder
+            mParent = currentFolder, // Create in current folder
+            item = null // null = create new folder (not edit existing)
+        )
+        dialog.setOnClickListener { _, _ ->
+            // Refresh the bookmark list after adding folder (manager.save() is called inside dialog)
             setBookmarkList(currentFolder)
         }
         dialog.show()
@@ -351,46 +372,18 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
     }
 
     private fun showMoveFolderDialog(item: BookmarkItem, position: Int) {
-        // Get all available folders (excluding the item itself if it's a folder)
-        val allFolders = mutableListOf<BookmarkFolderItem>()
-        
-        // Add root folder as option
-        allFolders.add(manager.root)
-        
-        // Recursively collect all folders
-        collectAllFolders(manager.root, allFolders, item)
-        
-        // Create folder names for display
-        val folderNames = allFolders.map { folder ->
-            if (folder == manager.root) {
-                getString(R.string.action_bookmarks) + " (Root)"
-            } else {
-                folder.title ?: "Unnamed Folder"
-            }
-        }.toTypedArray()
-        
-        // Show selection dialog
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Move to folder")
-            .setItems(folderNames) { _, which ->
-                val selectedFolder = allFolders[which]
+        // Show modern folder selection bottom sheet for moving
+        val folderSelectionSheet = FolderSelectionBottomSheetFragment.newInstance()
+            .setManager(manager)
+            .setInitialFolder(manager.root)
+            .setExcludeItem(item) // Prevent moving folder into itself or its descendants
+            .setOnFolderSelectedListener { selectedFolder ->
                 moveItemToFolder(item, selectedFolder)
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        
+        folderSelectionSheet.show(parentFragmentManager, "MoveFolderSelectionBottomSheet")
     }
     
-    private fun collectAllFolders(folder: BookmarkFolderItem, result: MutableList<BookmarkFolderItem>, excludeItem: BookmarkItem?) {
-        // Add subfolders to the result (excluding the item being moved if it's a folder)
-        for (i in 0 until folder.size()) {
-            val child = folder[i]
-            if (child is BookmarkFolderItem && child != excludeItem) {
-                result.add(child)
-                // Recursively collect subfolders
-                collectAllFolders(child, result, excludeItem)
-            }
-        }
-    }
     
     private fun moveItemToFolder(item: BookmarkItem, targetFolder: BookmarkFolderItem) {
         try {
