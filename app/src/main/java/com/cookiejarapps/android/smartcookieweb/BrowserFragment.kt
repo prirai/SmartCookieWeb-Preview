@@ -89,8 +89,8 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
     private fun setupContextualBottomToolbar() {
         val toolbar = binding.contextualBottomToolbar
         
-        // Show/hide toolbar based on user preference
-        val showBottomToolbar = UserPreferences(requireContext()).shouldUseBottomToolbar
+        // Force bottom toolbar to show for testing iOS icons
+        val showBottomToolbar = true // UserPreferences(requireContext()).shouldUseBottomToolbar
         if (showBottomToolbar) {
             toolbar.visibility = View.VISIBLE
         } else {

@@ -584,8 +584,8 @@ class HomeFragment : Fragment() {
     private fun setupContextualBottomToolbar() {
         val toolbar = binding.contextualBottomToolbar
         
-        // Show bottom toolbar when enabled in settings
-        val showBottomToolbar = UserPreferences(requireContext()).shouldUseBottomToolbar
+        // Force bottom toolbar to show for testing iOS icons
+        val showBottomToolbar = true // UserPreferences(requireContext()).shouldUseBottomToolbar
         if (showBottomToolbar) {
             toolbar.visibility = View.VISIBLE
             // Show address bar but hide redundant elements when bottom toolbar is enabled
