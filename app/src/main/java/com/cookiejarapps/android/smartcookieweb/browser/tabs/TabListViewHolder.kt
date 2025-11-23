@@ -35,11 +35,14 @@ class TabListViewHolder(
     @VisibleForTesting
     internal var styling: TabsTrayStyling? = null
 
-    override fun bind(
+    fun bind(
         tab: TabSessionState,
         isSelected: Boolean,
         styling: TabsTrayStyling,
-        delegate: mozilla.components.browser.tabstray.TabsTray.Delegate
+        delegate: mozilla.components.browser.tabstray.TabsTray.Delegate,
+        isFirst: Boolean = false,
+        isLast: Boolean = false,
+        isSingle: Boolean = false
     ) {
         this.tab = tab
         this.styling = styling
@@ -60,7 +63,7 @@ class TabListViewHolder(
             delegate.onTabClosed(tab)
         }
 
-        updateSelectedTabIndicator(isSelected)
+        updateSelectedTabIndicator(isSelected, isFirst, isLast, isSingle)
 
         // Set favicon - check cache if tab icon is null
         if (tab.content.icon != null) {
@@ -77,25 +80,57 @@ class TabListViewHolder(
         }
     }
 
+    override fun bind(
+        tab: TabSessionState,
+        isSelected: Boolean,
+        styling: TabsTrayStyling,
+        delegate: mozilla.components.browser.tabstray.TabsTray.Delegate
+    ) {
+        bind(tab, isSelected, styling, delegate, false, false, false)
+    }
+
     override fun updateSelectedTabIndicator(showAsSelected: Boolean) {
+        updateSelectedTabIndicator(showAsSelected, false, false, false)
+    }
+
+    private fun updateSelectedTabIndicator(
+        showAsSelected: Boolean, 
+        isFirst: Boolean, 
+        isLast: Boolean, 
+        isSingle: Boolean
+    ) {
         if (showAsSelected) {
-            showItemAsSelected()
+            showItemAsSelected(isFirst, isLast, isSingle)
         } else {
-            showItemAsNotSelected()
+            showItemAsNotSelected(isFirst, isLast, isSingle)
         }
     }
 
     @VisibleForTesting
-    internal fun showItemAsSelected() {
+    internal fun showItemAsSelected(isFirst: Boolean = false, isLast: Boolean = false, isSingle: Boolean = false) {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        itemView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.selected_tab))
         closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+        
+        val backgroundResource = when {
+            isSingle -> R.drawable.tab_list_single_selected_background
+            isFirst -> R.drawable.tab_list_first_selected_background
+            isLast -> R.drawable.tab_list_last_selected_background
+            else -> R.drawable.tab_list_selected_background
+        }
+        itemView.setBackgroundResource(backgroundResource)
     }
 
     @VisibleForTesting
-    internal fun showItemAsNotSelected() {
+    internal fun showItemAsNotSelected(isFirst: Boolean = false, isLast: Boolean = false, isSingle: Boolean = false) {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        itemView.setBackgroundColor(itemView.context.getColorFromAttr(R.attr.colorSurface))
         closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+        
+        val backgroundResource = when {
+            isSingle -> R.drawable.tab_list_single_unselected_background
+            isFirst -> R.drawable.tab_list_first_unselected_with_top_background
+            isLast -> R.drawable.tab_list_last_unselected_background
+            else -> R.drawable.tab_list_unselected_background
+        }
+        itemView.setBackgroundResource(backgroundResource)
     }
 }

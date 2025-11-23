@@ -63,9 +63,9 @@
         android:layout_below="@id/newTabButton"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="32dp"
-        android:paddingHorizontal="8dp"
-        android:paddingTop="8dp"
         android:paddingBottom="64dp"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
         android:clipToPadding="false"
         android:nestedScrollingEnabled="false"
         android:overScrollMode="never" />

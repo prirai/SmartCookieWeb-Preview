@@ -44,8 +44,16 @@ open class TabListAdapter(
 
     override fun onBindViewHolder(holder: TabViewHolder, position: Int) {
         val tab = getItem(position)
+        val isSelected = tab.id == selectedTabId
+        val isFirst = position == 0
+        val isLast = position == currentList.size - 1
+        val isSingle = currentList.size == 1
 
-        holder.bind(tab, tab.id == selectedTabId, styling, delegate)
+        if (holder is TabListViewHolder) {
+            holder.bind(tab, isSelected, styling, delegate, isFirst, isLast, isSingle)
+        } else {
+            holder.bind(tab, isSelected, styling, delegate)
+        }
     }
 
     override fun onBindViewHolder(
