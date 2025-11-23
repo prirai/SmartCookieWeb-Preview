@@ -538,7 +538,6 @@ class HomeFragment : Fragment() {
                         requireActivity().startActivity(settings)
                     }
                     HomeMenu.Item.Bookmarks -> {
-                        // Show bookmarks bottom sheet instead of drawer
                         val bookmarksBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
                         bookmarksBottomSheet.show(parentFragmentManager, "BookmarksBottomSheet")
                     }
@@ -692,7 +691,6 @@ class HomeFragment : Fragment() {
                                     requireActivity().startActivity(settings)
                                 }
                                 HomeMenu.Item.Bookmarks -> {
-                                    // Show bookmarks bottom sheet instead of drawer
                                     val bookmarksBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
                                     bookmarksBottomSheet.show(parentFragmentManager, "BookmarksBottomSheet")
                                 }

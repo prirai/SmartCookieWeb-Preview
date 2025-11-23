@@ -130,7 +130,6 @@ class DefaultBrowserToolbarMenuController(
                 }
             }
             is ToolbarMenu.Item.Bookmarks -> {
-                // Show bookmarks bottom sheet instead of drawer
                 val bookmarksBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
                 bookmarksBottomSheet.show(activity.supportFragmentManager, "BookmarksBottomSheet")
             }

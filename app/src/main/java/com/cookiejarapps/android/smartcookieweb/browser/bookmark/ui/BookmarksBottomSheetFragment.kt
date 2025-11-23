@@ -117,6 +117,8 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
         
         val dialog = AddBookmarkSiteDialog(requireActivity(), title, url)
         dialog.setOnClickListener { _, _ ->
+            // Save changes to persistent storage
+            manager.save()
             // Refresh the bookmark list after adding
             setBookmarkList(currentFolder)
         }
@@ -294,6 +296,8 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
                 // Show edit bookmark dialog
                 val dialog = AddBookmarkSiteDialog(requireActivity(), item.title ?: "", item.url)
                 dialog.setOnClickListener { _, _ ->
+                    // Save changes to persistent storage
+                    manager.save()
                     // Refresh the bookmark list after editing
                     setBookmarkList(currentFolder)
                 }
@@ -303,6 +307,8 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
                 // Show edit folder dialog
                 val dialog = AddBookmarkFolderDialog(requireActivity(), manager, item)
                 dialog.setOnClickListener { _, _ ->
+                    // Save changes to persistent storage
+                    manager.save()
                     // Refresh the bookmark list after editing
                     setBookmarkList(currentFolder)
                 }
@@ -326,10 +332,18 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
                 // Delete the bookmark
                 try {
                     currentFolder.itemList.remove(item)
+                    // Save changes to persistent storage
+                    manager.save()
                     // Refresh the bookmark list
                     setBookmarkList(currentFolder)
                 } catch (e: Exception) {
-                    // Handle deletion error
+                    android.util.Log.e("BookmarksBottomSheet", "Error deleting bookmark", e)
+                    // Handle deletion error - show user feedback
+                    android.widget.Toast.makeText(
+                        requireContext(), 
+                        "Error deleting bookmark", 
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -386,8 +400,8 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
             // Add to new parent
             targetFolder.add(item)
             
-            // Note: Parent reference is automatically updated when adding to target folder
-            // The BookmarkItem parent property is managed by the folder structure
+            // Save changes to persistent storage
+            manager.save()
             
             // Refresh the current view
             setBookmarkList(currentFolder)

@@ -26,7 +26,6 @@ import androidx.navigation.ui.NavigationUI
 import com.cookiejarapps.android.smartcookieweb.addons.WebExtensionPopupFragment
 import com.cookiejarapps.android.smartcookieweb.addons.WebExtensionTabletPopupFragment
 import com.cookiejarapps.android.smartcookieweb.browser.*
-import com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarkFragment
 import com.cookiejarapps.android.smartcookieweb.browser.home.HomeFragmentDirections
 import com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsTrayFragment
 import com.cookiejarapps.android.smartcookieweb.databinding.ActivityMainBinding
@@ -204,8 +203,8 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             WindowInsetsCompat.CONSUMED
         }
 
-        val rightDrawer = if(UserPreferences(this).swapDrawers) TabsTrayFragment() else BookmarkFragment()
-        val leftDrawer = if(UserPreferences(this).swapDrawers) BookmarkFragment() else TabsTrayFragment()
+        val rightDrawer = TabsTrayFragment()
+        val leftDrawer = TabsTrayFragment()
 
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.right_drawer, rightDrawer)
@@ -223,7 +222,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
                         GravityCompat.START
                     )
                 ) {
-                     val tabDrawer = if(UserPreferences(this@BrowserActivity).swapDrawers) rightDrawer else leftDrawer
+                     val tabDrawer = rightDrawer // Always use right drawer for tabs
                     (tabDrawer as TabsTrayFragment).notifyBrowsingModeStateChanged()
                 }
             }
