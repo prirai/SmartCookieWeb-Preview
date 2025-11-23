@@ -255,12 +255,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     private fun addNewTab() {
         val isPrivate = configuration.browserTabType == BrowserTabType.PRIVATE
         
-        val homepage = when (UserPreferences(requireContext()).homepageType) {
-            HomepageChoice.VIEW.ordinal -> "about:homepage"
-            HomepageChoice.BLANK_PAGE.ordinal -> "about:blank"
-            HomepageChoice.CUSTOM_PAGE.ordinal -> UserPreferences(requireContext()).customHomepageUrl
-            else -> "about:homepage"
-        }
+        // Always use about:homepage as the default
+        val homepage = "about:homepage"
         
         requireContext().components.tabsUseCases.addTab.invoke(
             homepage,

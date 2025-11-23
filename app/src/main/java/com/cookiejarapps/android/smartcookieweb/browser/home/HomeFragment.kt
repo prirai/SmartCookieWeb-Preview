@@ -283,8 +283,11 @@ class HomeFragment : Fragment() {
             showCreateShortcutDialog(binding.shortcutGrid.adapter as ShortcutGridAdapter)
         }
 
+        // Apply private browsing theme
         if(browsingModeManager.mode == BrowsingMode.Private) {
-            binding.toolbarWrapper.background = context?.let { ContextCompat.getDrawable(it, R.drawable.toolbar_background_private) }
+            setupPrivateBrowsingTheme()
+        } else {
+            setupNormalBrowsingTheme()
         }
 
         appBarLayout = binding.homeAppBar
@@ -616,6 +619,12 @@ class HomeFragment : Fragment() {
                     navigateToSearch()
                 }
 
+                override fun onBookmarksClicked() {
+                    // Open bookmarks modal bottom sheet
+                    val bookmarksBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
+                    bookmarksBottomSheet.show(parentFragmentManager, "BookmarksBottomSheet")
+                }
+
                 override fun onNewTabClicked() {
                     // Add new tab
                     browsingModeManager.mode = BrowsingMode.Normal
@@ -761,6 +770,49 @@ class HomeFragment : Fragment() {
                 isHomepage = true // This is the homepage
             )
         }
+    }
+
+    private fun setupPrivateBrowsingTheme() {
+        // Purple/dark theme for private browsing (like Firefox)
+        binding.toolbarWrapper.background = context?.let { 
+            ContextCompat.getDrawable(it, R.drawable.toolbar_background_private) 
+        }
+        
+        // Change background to darker shade
+        binding.homeLayout.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.photonViolet80))
+        
+        // Update app bar with private browsing colors  
+        binding.homeAppBar.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.photonViolet80))
+        
+        // Change app icon tint for private mode
+        binding.appIcon.setColorFilter(ContextCompat.getColor(requireContext(), R.color.photonWhite))
+        
+        // Update app name color
+        binding.appName.setTextColor(ContextCompat.getColor(requireContext(), R.color.photonWhite))
+        
+        // Update shortcuts header color
+        binding.shortcutName.setTextColor(ContextCompat.getColor(requireContext(), R.color.photonWhite))
+        
+        android.util.Log.d("HomeFragment", "Applied private browsing theme")
+    }
+    
+    private fun setupNormalBrowsingTheme() {
+        // Don't override background colors - let XML handle theme-aware colors
+        binding.toolbarWrapper.background = context?.let { 
+            ContextCompat.getDrawable(it, R.drawable.toolbar_background) 
+        }
+        
+        // Remove background color overrides to respect XML theme attributes
+        // binding.homeLayout already uses ?attr/colorSurface in XML
+        // binding.homeAppBar already uses ?attr/colorSurface in XML
+        
+        // Reset app icon tint to allow original colors
+        binding.appIcon.clearColorFilter()
+        
+        // Remove text color overrides to respect XML/theme defaults
+        // Let the XML handle theme-aware text colors
+        
+        android.util.Log.d("HomeFragment", "Applied theme-aware normal browsing (respecting XML)")
     }
 
     companion object {

@@ -30,6 +30,7 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         fun onNewTabClicked()
         fun onTabCountClicked()
         fun onMenuClicked()
+        fun onBookmarksClicked()
     }
 
     private lateinit var backButton: ImageButton
@@ -64,7 +65,15 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     }
 
     private fun setupClickListeners() {
-        backButton.setOnClickListener { listener?.onBackClicked() }
+        backButton.setOnClickListener { 
+            // Check if it's showing bookmarks icon or back button
+            if (backButton.drawable.constantState == 
+                ContextCompat.getDrawable(context, R.drawable.ic_baseline_bookmark)?.constantState) {
+                listener?.onBookmarksClicked()
+            } else {
+                listener?.onBackClicked()
+            }
+        }
         forwardButton.setOnClickListener { listener?.onForwardClicked() }
         shareButton.setOnClickListener { listener?.onShareClicked() }
         searchButton.setOnClickListener { listener?.onSearchClicked() }
@@ -84,7 +93,7 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         isHomepage: Boolean
     ) {
         when {
-            isHomepage -> showHomepageContext(tabCount)
+            isHomepage -> showHomepageContext(tabCount, canGoForward)
             canGoForward -> showFullNavigationContext(tabCount)
             tab != null && !isHomepage -> showWebsiteContext(canGoBack, tabCount)
             else -> showDefaultContext(tabCount)
@@ -94,22 +103,24 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     }
 
     /**
-     * Homepage context: back(disabled), share(disabled), search, tabs, menu
+     * Homepage context: bookmarks, forward(enabled/disabled), search, tabs, menu
      */
-    private fun showHomepageContext(tabCount: Int) {
+    private fun showHomepageContext(tabCount: Int, canGoForward: Boolean = false) {
         // Always show the toolbar on homepage
         this.visibility = View.VISIBLE
         
-        // Show: back(disabled), share(disabled), search, tabs, menu
+        // Show: bookmarks, forward(enabled/disabled), search, tabs, menu
         backButton.visibility = View.VISIBLE
-        backButton.isEnabled = false
-        backButton.alpha = 0.4f
+        backButton.setImageResource(R.drawable.ic_baseline_bookmark)
+        backButton.isEnabled = true
+        backButton.alpha = 1.0f
         
-        forwardButton.visibility = View.GONE
+        forwardButton.visibility = View.VISIBLE
+        forwardButton.setImageResource(R.drawable.ic_ios_forward)
+        forwardButton.isEnabled = canGoForward
+        forwardButton.alpha = if (canGoForward) 1.0f else 0.4f
         
-        shareButton.visibility = View.VISIBLE
-        shareButton.isEnabled = false
-        shareButton.alpha = 0.4f
+        shareButton.visibility = View.GONE
         
         searchButton.visibility = View.VISIBLE
         searchButton.isEnabled = true
@@ -129,6 +140,7 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     private fun showWebsiteContext(canGoBack: Boolean, tabCount: Int) {
         // Show: back, share, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_ios_back) // Reset to back icon
         backButton.isEnabled = canGoBack
         backButton.alpha = if (canGoBack) 1.0f else 0.4f
         
@@ -156,10 +168,12 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     private fun showFullNavigationContext(tabCount: Int) {
         // Show: back, forward, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_ios_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
         
         forwardButton.visibility = View.VISIBLE
+        forwardButton.setImageResource(R.drawable.ic_ios_forward) // Reset to forward icon
         forwardButton.isEnabled = true
         forwardButton.alpha = 1.0f
         
@@ -183,6 +197,7 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     private fun showDefaultContext(tabCount: Int) {
         // Show basic navigation
         backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_ios_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
         

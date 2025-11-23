@@ -9,7 +9,15 @@ import com.cookiejarapps.android.smartcookieweb.databinding.FragmentBrowserBindi
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.collect
+import androidx.navigation.fragment.findNavController
 import mozilla.components.browser.state.state.SessionState
+import mozilla.components.lib.state.ext.flowScoped
+import mozilla.components.support.ktx.kotlinx.coroutines.flow.ifAnyChanged
 import mozilla.components.browser.thumbnails.BrowserThumbnails
 import mozilla.components.feature.tabs.WindowFeature
 import mozilla.components.support.base.feature.UserInteractionHandler
@@ -21,8 +29,6 @@ import mozilla.components.support.base.feature.ViewBoundFeatureWrapper
 @ExperimentalCoroutinesApi
 @Suppress("TooManyFunctions", "LargeClass")
 class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
-
-    private var _binding: FragmentBrowserBinding? = null
 
     private val windowFeature = ViewBoundFeatureWrapper<WindowFeature>()
     private val webExtToolbarFeature = ViewBoundFeatureWrapper<WebExtensionToolbarFeature>()
@@ -84,6 +90,10 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
 
         // Setup contextual bottom toolbar
         setupContextualBottomToolbar()
+        
+        
+        // Observe tab changes for real-time toolbar updates
+        observeTabChangesForToolbar()
     }
 
     private fun setupContextualBottomToolbar() {
@@ -122,18 +132,29 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                 }
 
                 override fun onSearchClicked() {
+                    android.util.Log.d("BrowserFragment", "Search button clicked!")
                     // Focus on the toolbar for search
                     browserToolbarView.view.displayMode()
                 }
 
                 override fun onNewTabClicked() {
-                    requireContext().components.tabsUseCases.addTab.invoke("about:homepage")
+                    android.util.Log.d("BrowserFragment", "New tab button clicked!")
+                    requireContext().components.tabsUseCases.addTab.invoke("about:homepage", selectTab = true)
                 }
 
                 override fun onTabCountClicked() {
+                    android.util.Log.d("BrowserFragment", "Tab count button clicked!")
                     // Open tabs bottom sheet
                     val tabsBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.newInstance()
                     tabsBottomSheet.show(parentFragmentManager, com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.TAG)
+                }
+
+                override fun onBookmarksClicked() {
+                    android.util.Log.d("BrowserFragment", "Bookmark button clicked!")
+                    // Use the exact same logic as the three-dot menu
+                    browserInteractor.onBrowserToolbarMenuItemTapped(
+                        com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarMenu.Item.Bookmarks
+                    )
                 }
 
                 override fun onMenuClicked() {
@@ -189,25 +210,77 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
     }
 
     private fun updateContextualToolbar() {
-        val toolbar = binding.contextualBottomToolbar
-        if (toolbar.visibility == View.VISIBLE) {
-            val store = requireContext().components.store.state
-            val currentTab = store.tabs.find { it.id == store.selectedTabId }
-            
-            toolbar.updateForContext(
-                tab = currentTab,
-                canGoBack = currentTab?.content?.canGoBack ?: false,
-                canGoForward = currentTab?.content?.canGoForward ?: false,
-                tabCount = store.tabs.size,
-                isHomepage = currentTab?.content?.url?.let { 
-                    it == "about:homepage" || it == "about:blank" || it.isEmpty() 
-                } ?: true
-            )
+        // Safety check: ensure fragment and view are still valid
+        if (!isAdded || view == null) return
+        
+        try {
+            val toolbar = binding.contextualBottomToolbar
+            if (toolbar.visibility == View.VISIBLE) {
+                val store = requireContext().components.store.state
+                val currentTab = store.tabs.find { it.id == store.selectedTabId }
+                
+                // Better homepage detection: only treat as homepage if URL is actually about:homepage
+                // This fixes the forward button issue by properly distinguishing homepage from search results
+                val isHomepage = currentTab?.content?.url == "about:homepage"
+                
+                toolbar.updateForContext(
+                    tab = currentTab,
+                    canGoBack = currentTab?.content?.canGoBack ?: false,
+                    canGoForward = currentTab?.content?.canGoForward ?: false,
+                    tabCount = store.tabs.size,
+                    isHomepage = isHomepage
+                )
+            }
+        } catch (e: Exception) {
+            // Ignore errors if fragment is being destroyed
         }
     }
+    
 
     override fun onResume() {
         super.onResume()
         updateContextualToolbar()
+    }
+    
+    private fun observeTabChangesForToolbar() {
+        // Observe browser state changes to update toolbar in real-time
+        viewLifecycleOwner.lifecycleScope.launch {
+            requireContext().components.store.flowScoped { flow ->
+                flow.mapNotNull { state -> 
+                    // Safety check: ensure fragment is still attached
+                    if (!isAdded) return@mapNotNull null
+                    val currentTab = state.tabs.find { it.id == state.selectedTabId }
+                    currentTab
+                }
+                .ifAnyChanged { tab ->
+                    arrayOf(
+                        tab.content.loading,
+                        tab.content.canGoBack,
+                        tab.content.canGoForward,
+                        tab.content.url,
+                        tab.id
+                    )
+                }
+                .collect {
+                    // Update toolbar when navigation state changes (only if fragment is still attached)
+                    if (isAdded && view != null) {
+                        updateContextualToolbar()
+                    }
+                }
+            }
+        }
+        
+        // Also observe tab selection changes
+        viewLifecycleOwner.lifecycleScope.launch {
+            requireContext().components.store.flowScoped { flow ->
+                flow.distinctUntilChangedBy { it.selectedTabId }
+                .collect {
+                    // Update toolbar when tab selection changes (only if fragment is still attached)
+                    if (isAdded && view != null) {
+                        updateContextualToolbar()
+                    }
+                }
+            }
+        }
     }
 }
