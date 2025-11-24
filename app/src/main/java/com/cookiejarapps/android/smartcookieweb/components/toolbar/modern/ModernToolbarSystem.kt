@@ -26,11 +26,18 @@ class ModernToolbarSystem @JvmOverloads constructor(
     private var scrollingEnabled = true
     private val hideAnimator = ValueAnimator()
     private var engineView: EngineView? = null
+    
+    // Position tracking for proper scroll direction
+    private var toolbarPosition: ToolbarPosition = ToolbarPosition.BOTTOM
 
     // Components
     private var tabGroupComponent: View? = null
     private var addressBarComponent: View? = null
     private var contextualComponent: View? = null
+    
+    enum class ToolbarPosition {
+        TOP, BOTTOM
+    }
 
     init {
         orientation = VERTICAL
@@ -93,6 +100,11 @@ class ModernToolbarSystem @JvmOverloads constructor(
     fun setEngineView(engine: EngineView) {
         engineView = engine
         updateDynamicToolbarHeight()
+    }
+    
+    fun setToolbarPosition(position: ToolbarPosition) {
+        toolbarPosition = position
+        android.util.Log.d("ModernToolbar", "Set toolbar position: $position")
     }
 
     private fun updateDynamicToolbarHeight() {
@@ -162,8 +174,14 @@ class ModernToolbarSystem @JvmOverloads constructor(
         val totalHeight = getTotalHeight()
         currentOffset = offset.coerceIn(0, totalHeight)
         
-        // FIXED: Translate DOWN to hide (positive Y), UP to show (0 Y)
-        translationY = currentOffset.toFloat()  // Positive moves DOWN (hiding)
+        // Position-aware translation:
+        // TOP toolbar: Negative Y to hide upward, 0 Y to show
+        // BOTTOM toolbar: Positive Y to hide downward, 0 Y to show
+        translationY = when (toolbarPosition) {
+            ToolbarPosition.TOP -> -currentOffset.toFloat()  // Negative moves UP (hiding)
+            ToolbarPosition.BOTTOM -> currentOffset.toFloat()  // Positive moves DOWN (hiding)
+        }
+        
         alpha = if (totalHeight > 0) {
             1f - (currentOffset.toFloat() / totalHeight * 0.3f) // Subtle fade
         } else 1f
@@ -171,8 +189,9 @@ class ModernToolbarSystem @JvmOverloads constructor(
         // Apply clipping to engine view
         engineView?.setVerticalClipping(currentOffset)
         
-        // Enhanced logging with Y position
-        android.util.Log.d("ModernToolbar", "📍 Y Position: $translationY, Offset: $currentOffset/$totalHeight, Alpha: $alpha")
+        // Enhanced logging with Y position and direction
+        val direction = if (toolbarPosition == ToolbarPosition.TOP) "UP" else "DOWN"
+        android.util.Log.d("ModernToolbar", "📍 Y Position: $translationY ($direction), Offset: $currentOffset/$totalHeight, Alpha: $alpha")
     }
 
     fun getCurrentOffset(): Int = currentOffset

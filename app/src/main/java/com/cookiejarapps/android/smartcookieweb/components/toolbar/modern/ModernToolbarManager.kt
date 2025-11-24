@@ -53,14 +53,72 @@ class ModernToolbarManager(
     }
     
     private fun initializeTopToolbar() {
-        // Keep existing top toolbar simple for now - could enhance later
-        android.util.Log.d("ModernToolbarManager", "Using existing top toolbar")
+        android.util.Log.d("ModernToolbarManager", "Initializing modern hybrid TOP/BOTTOM toolbar system")
+        
+        // Create TWO modern toolbar systems for hybrid layout:
+        // 1. Top system: Address bar only
+        // 2. Bottom system: Tab bar + contextual toolbar
+        
+        // TOP SYSTEM: Address bar only
+        val topToolbarSystem = ModernToolbarSystem(container.context).apply {
+            id = generateViewId()
+            setToolbarPosition(ModernToolbarSystem.ToolbarPosition.TOP)
+        }
+        
+        val topParams = CoordinatorLayout.LayoutParams(
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+            CoordinatorLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = android.view.Gravity.TOP
+            behavior = ModernScrollBehavior(container.context)
+        }
+        
+        container.addView(topToolbarSystem, topParams)
+        
+        // Add only browser toolbar to top
+        browserToolbar?.let { toolbar ->
+            (toolbar.parent as? ViewGroup)?.removeView(toolbar)
+            topToolbarSystem.addComponent(toolbar, ModernToolbarSystem.ComponentType.ADDRESS_BAR)
+            android.util.Log.d("ModernToolbarManager", "Added address bar to TOP system")
+        }
+        
+        // Connect engine view to top system for proper scroll behavior
+        findEngineView(container)?.let { engineView ->
+            topToolbarSystem.setEngineView(engineView)
+            android.util.Log.d("ModernToolbarManager", "Connected engine view to TOP system")
+        }
+        
+        // BOTTOM SYSTEM: Tab group + contextual toolbar
+        modernToolbarSystem = ModernToolbarSystem(container.context).apply {
+            id = generateViewId()
+            setToolbarPosition(ModernToolbarSystem.ToolbarPosition.BOTTOM)
+        }
+        
+        val bottomParams = CoordinatorLayout.LayoutParams(
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+            CoordinatorLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = android.view.Gravity.BOTTOM
+            behavior = ModernScrollBehavior(container.context)
+        }
+        
+        container.addView(modernToolbarSystem, bottomParams)
+        
+        // Add tab group and contextual toolbar to bottom
+        createEnhancedTabGroupView()
+        createModernContextualToolbar()
+        
+        // Configure scroll behavior for both systems
+        updateScrollBehavior()
+        
+        android.util.Log.d("ModernToolbarManager", "Initialized hybrid toolbar system - address bar at TOP, tabs+controls at BOTTOM")
     }
     
     private fun initializeModernBottomToolbar() {
         // Create the revolutionary unified toolbar system
         modernToolbarSystem = ModernToolbarSystem(container.context).apply {
             id = generateViewId()
+            setToolbarPosition(ModernToolbarSystem.ToolbarPosition.BOTTOM)
         }
         
         // Setup proper CoordinatorLayout params with our custom behavior
@@ -225,6 +283,36 @@ class ModernToolbarManager(
     
     private fun generateViewId(): Int {
         return android.view.View.generateViewId()
+    }
+    
+    private fun findEngineView(coordinatorLayout: CoordinatorLayout): mozilla.components.concept.engine.EngineView? {
+        for (i in 0 until coordinatorLayout.childCount) {
+            val child = coordinatorLayout.getChildAt(i)
+            
+            // Direct EngineView
+            if (child is mozilla.components.concept.engine.EngineView) {
+                return child
+            }
+            
+            // EngineView in nested layouts
+            if (child is ViewGroup) {
+                val engineView = searchForEngineView(child)
+                if (engineView != null) return engineView
+            }
+        }
+        return null
+    }
+
+    private fun searchForEngineView(view: android.view.View): mozilla.components.concept.engine.EngineView? {
+        if (view is mozilla.components.concept.engine.EngineView) return view
+        
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                val engineView = searchForEngineView(view.getChildAt(i))
+                if (engineView != null) return engineView
+            }
+        }
+        return null
     }
     
     enum class NavigationAction {

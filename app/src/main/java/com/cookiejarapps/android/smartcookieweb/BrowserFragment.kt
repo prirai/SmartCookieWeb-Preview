@@ -7,7 +7,6 @@ import com.cookiejarapps.android.smartcookieweb.browser.toolbar.WebExtensionTool
 import com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
 import com.cookiejarapps.android.smartcookieweb.databinding.FragmentBrowserBinding
 import com.cookiejarapps.android.smartcookieweb.ext.components
-import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupBar
 import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupWithTabs
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -97,8 +96,7 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         // Setup contextual bottom toolbar
         setupContextualBottomToolbar()
         
-        // Setup tab groups
-        setupTabGroups()
+        // Tab groups are now handled by the modern toolbar system
         
         // Observe tab changes for real-time toolbar updates
         observeTabChangesForToolbar()
@@ -297,54 +295,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         }
     }
     
-    private fun setupTabGroups() {
-        val tabGroupManager = requireContext().components.tabGroupManager
-        
-        // Use integrated tab group bar from the address bar component, fallback to separate one
-        val tabGroupBar = (browserToolbarView.integratedTabGroupBar as? com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupBar) 
-            ?: binding.tabGroupBar
-        
-        tabGroupBar.setup(
-            tabGroupManager = tabGroupManager,
-            lifecycleOwner = viewLifecycleOwner,
-            listener = object : TabGroupBar.TabGroupBarListener {
-                override fun onTabSelected(tabId: String) {
-                    // Switch to the selected tab
-                    android.util.Log.d("BrowserFragment", "Tab selected from group bar: $tabId")
-                    requireContext().components.tabsUseCases.selectTab(tabId)
-                    
-                    // The browser state observer will handle the visual update automatically
-                    // No need for manual refresh which can cause flickering
-                }
-            }
-        )
-        
-        // Auto-group new tabs
-        observeTabChangesForGrouping(tabGroupManager)
-    }
-    
-    private fun observeTabChangesForGrouping(tabGroupManager: com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupManager) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            requireContext().components.store.flowScoped { flow ->
-                flow.mapNotNull { state -> 
-                    if (!isAdded) return@mapNotNull null
-                    state.tabs.find { it.id == state.selectedTabId }
-                }
-                .collect { currentTab ->
-                    if (isAdded && currentTab.content.url.isNotBlank()) {
-                        // Auto-group the tab
-                        tabGroupManager.autoGroupTab(currentTab.id, currentTab.content.url)
-                        
-                        // Update current group based on the current tab
-                        val groupId = tabGroupManager.getGroupForTab(currentTab.id)
-                        if (groupId != null) {
-                            tabGroupManager.switchToGroup(groupId)
-                        }
-                    }
-                }
-            }
-        }
-    }
     
     private fun initializeModernToolbarSystem() {
         val prefs = UserPreferences(requireContext())
@@ -379,10 +329,8 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                 }
             )
             
-            // Hide old separate toolbar components for bottom position
-            if (prefs.toolbarPosition == com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarPosition.BOTTOM.ordinal) {
-                hideOldToolbarComponents()
-            }
+            // Hide old separate toolbar components for both top and bottom positions when using modern toolbar
+            hideOldToolbarComponents(prefs.toolbarPosition)
             
             // Start observing tab changes for real-time updates
             observeTabChangesForModernToolbar()
@@ -468,9 +416,31 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                         val menuButton = contextualToolbar?.findViewById<android.view.View>(R.id.menu_button)
                         
                         if (menuButton != null) {
-                            // Show menu anchored to the modern toolbar menu button
-                            menu.show(anchor = menuButton)
-                            android.util.Log.d("ModernToolbar", "Menu opened successfully via modern toolbar")
+                            // Use the same positioning approach as the working implementation
+                            // Create a temporary view above the button for better positioning
+                            val tempView = android.view.View(context)
+                            tempView.layoutParams = android.view.ViewGroup.LayoutParams(1, 1)
+                            
+                            // Add the temp view to the contextual toolbar parent
+                            contextualToolbar.addView(tempView)
+                            
+                            // Position the temp view above the menu button (same as working implementation)
+                            tempView.x = menuButton.x
+                            tempView.y = menuButton.y - 60 // 60px above the button
+                            
+                            // Show menu anchored to temp view
+                            menu.show(anchor = tempView)
+                            
+                            // Clean up temp view after menu interaction
+                            tempView.postDelayed({
+                                try {
+                                    contextualToolbar.removeView(tempView)
+                                } catch (e: Exception) {
+                                    // Ignore if view was already removed
+                                }
+                            }, 3000) // 3 seconds cleanup delay
+                            
+                            android.util.Log.d("ModernToolbar", "Menu opened successfully via modern toolbar with proper positioning")
                         } else {
                             // Fallback: show menu anchored to the modern toolbar system itself
                             menu.show(anchor = modernToolbarSystem)
@@ -590,32 +560,51 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         android.util.Log.d("ModernToolbar", "🚀 Initialized toolbar with current state - tabs: ${state.tabs.size}, homepage: $isHomepage")
     }
     
-    private fun hideOldToolbarComponents() {
-        // Hide all old toolbar components completely
+    private fun hideOldToolbarComponents(toolbarPosition: Int) {
+        android.util.Log.d("ModernToolbar", "🔄 Hiding old toolbar components for position: $toolbarPosition")
+        
+        // Hide old separate toolbar components that are no longer needed
         binding.tabGroupBar.visibility = android.view.View.GONE
         binding.contextualBottomToolbar.visibility = android.view.View.GONE
+        android.util.Log.d("ModernToolbar", "Hidden old separate toolbar components")
         
-        // Also hide the original BrowserToolbarView container if it exists in the layout
+        // Hide any duplicate or conflicting toolbar components in the coordinator layout
         try {
-            // The original toolbar might still be visible in the coordinator layout
             val coordinatorLayout = binding.browserLayout
             for (i in 0 until coordinatorLayout.childCount) {
                 val child = coordinatorLayout.getChildAt(i)
                 
-                // Look for any remaining BrowserToolbar or toolbar-related views
+                // Look for any remaining BrowserToolbar or toolbar-related views that aren't the modern system
                 if (child is mozilla.components.browser.toolbar.BrowserToolbar && 
                     child != browserToolbarView.view) {
                     child.visibility = android.view.View.GONE
                     android.util.Log.d("ModernToolbar", "Hidden duplicate BrowserToolbar")
                 }
                 
-                // Also check for any views with bottom gravity that might be the old toolbar
+                // Check for views with the opposite gravity that might conflict
                 val layoutParams = child.layoutParams
                 if (layoutParams is androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) {
-                    if ((layoutParams.gravity and android.view.Gravity.BOTTOM) == android.view.Gravity.BOTTOM &&
-                        child !is com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarSystem) {
-                        child.visibility = android.view.View.GONE
-                        android.util.Log.d("ModernToolbar", "Hidden old bottom component: ${child.javaClass.simpleName}")
+                    val isModernToolbar = child is com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarSystem
+                    
+                    if (!isModernToolbar) {
+                        if (toolbarPosition == com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarPosition.BOTTOM.ordinal) {
+                            // Hide old bottom components
+                            if ((layoutParams.gravity and android.view.Gravity.BOTTOM) == android.view.Gravity.BOTTOM) {
+                                child.visibility = android.view.View.GONE
+                                android.util.Log.d("ModernToolbar", "Hidden old bottom component: ${child.javaClass.simpleName}")
+                            }
+                        } else {
+                            // Hide old top components
+                            if ((layoutParams.gravity and android.view.Gravity.TOP) == android.view.Gravity.TOP ||
+                                layoutParams.gravity == android.view.Gravity.NO_GRAVITY) {
+                                // Don't hide the EngineView or other essential components
+                                if (child.javaClass.simpleName.contains("Toolbar") || 
+                                    child.javaClass.simpleName.contains("Tab")) {
+                                    child.visibility = android.view.View.GONE
+                                    android.util.Log.d("ModernToolbar", "Hidden old top component: ${child.javaClass.simpleName}")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -623,7 +612,7 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             android.util.Log.w("ModernToolbar", "Error hiding old components", e)
         }
         
-        android.util.Log.d("ModernToolbar", "🔄 Hidden all old toolbar components")
+        android.util.Log.d("ModernToolbar", "✅ Successfully hidden old toolbar components")
     }
     
     private fun findContextualToolbarInModernSystem(modernToolbarSystem: com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarSystem): android.view.ViewGroup? {
@@ -646,73 +635,10 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             
             android.util.Log.d("BrowserFragment", "Applying simple scroll behavior fix for bottom toolbar")
             
-            // The key insight: we need to tell the EngineView about the total height of all bottom components
-            view?.post {
-                val tabGroupHeight = if (binding.tabGroupBar.visibility == android.view.View.VISIBLE) {
-                    binding.tabGroupBar.height
-                } else 0
-                
-                val browserToolbarHeight = browserToolbarView.view.height
-                val contextualToolbarHeight = binding.contextualBottomToolbar.height
-                
-                val totalHeight = tabGroupHeight + browserToolbarHeight + contextualToolbarHeight
-                
-                android.util.Log.d("BrowserFragment", "Setting dynamic toolbar height: $totalHeight (tab: $tabGroupHeight, browser: $browserToolbarHeight, contextual: $contextualToolbarHeight)")
-                
-                // This is the critical call that was missing - tell GeckoView about ALL bottom toolbars
-                if (totalHeight > 0) {
-                    binding.engineView.setDynamicToolbarMaxHeight(totalHeight)
-                    android.util.Log.d("BrowserFragment", "Applied dynamic toolbar height: $totalHeight")
-                }
-            }
+            // The modern toolbar system handles dynamic height automatically
+            android.util.Log.d("BrowserFragment", "Modern toolbar system handles scroll behavior - no manual setup needed")
         }
     }
     
-    private fun setupScrollBehaviorForBottomBars() {
-        val context = requireContext()
-        if (UserPreferences(context).hideBarWhileScrolling) {
-            android.util.Log.d("ScrollBehavior", "Setting up scroll behavior for bottom bars")
-            
-            // Calculate total height of bottom bars for dynamic toolbar height
-            val tabGroupBarHeight = if (binding.tabGroupBar.visibility == View.VISIBLE) {
-                binding.tabGroupBar.height
-            } else 0
-            
-            val bottomToolbarHeight = binding.contextualBottomToolbar.height
-            val totalBottomHeight = tabGroupBarHeight + bottomToolbarHeight
-            
-            android.util.Log.d("ScrollBehavior", "Tab group bar height: $tabGroupBarHeight, Bottom toolbar height: $bottomToolbarHeight, Total: $totalBottomHeight")
-            
-            // Set dynamic toolbar height for bottom bars (like line 583 in BaseBrowserFragment)
-            if (totalBottomHeight > 0) {
-                binding.engineView.setDynamicToolbarMaxHeight(totalBottomHeight)
-            }
-            
-            // Apply the same EngineViewScrollingBehavior used by the address bar
-            // Following the exact pattern from BrowserToolbarView.setDynamicToolbarBehavior()
-            
-            // Set behavior for tab group bar
-            (binding.tabGroupBar.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.apply {
-                behavior = mozilla.components.ui.widgets.behavior.EngineViewScrollingBehavior(
-                    binding.tabGroupBar.context, 
-                    null, 
-                    mozilla.components.ui.widgets.behavior.ViewPosition.BOTTOM
-                )
-                android.util.Log.d("ScrollBehavior", "Applied behavior to tab group bar")
-            }
-            
-            // Set behavior for contextual bottom toolbar  
-            (binding.contextualBottomToolbar.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.apply {
-                behavior = mozilla.components.ui.widgets.behavior.EngineViewScrollingBehavior(
-                    binding.contextualBottomToolbar.context, 
-                    null, 
-                    mozilla.components.ui.widgets.behavior.ViewPosition.BOTTOM
-                )
-                android.util.Log.d("ScrollBehavior", "Applied behavior to contextual bottom toolbar")
-            }
-        } else {
-            android.util.Log.d("ScrollBehavior", "Hide bar while scrolling is disabled")
-        }
-    }
     
 }
