@@ -439,21 +439,60 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             }
             com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarManager.NavigationAction.MENU -> {
                 android.util.Log.d("ModernToolbar", "📱 Menu action - opening browser menu")
-                // Use the EXACT same menu system that works on about:homepage
+                // Use the EXACT same working approach from the original contextual toolbar
                 try {
-                    // Use the EXACT same approach that works on about:homepage
-                    // Find and click the menu button from the working BrowserToolbar
-                    val menuButton = browserToolbarView.view.findViewById<android.view.View>(
-                        mozilla.components.browser.toolbar.R.id.mozac_browser_toolbar_menu
+                    val context = requireContext()
+                    val components = context.components
+                    
+                    // Create a BrowserMenu instance exactly like the working implementation
+                    val browserMenu = com.cookiejarapps.android.smartcookieweb.components.toolbar.BrowserMenu(
+                        context = context,
+                        store = components.store,
+                        onItemTapped = { item ->
+                            browserInteractor.onBrowserToolbarMenuItemTapped(item)
+                        },
+                        lifecycleOwner = viewLifecycleOwner,
+                        isPinningSupported = components.webAppUseCases.isPinningSupported(),
+                        shouldReverseItems = false
                     )
-                    if (menuButton != null) {
-                        menuButton.performClick()
-                        android.util.Log.d("ModernToolbar", "Menu opened via direct button click")
+                    
+                    // Build and show the menu
+                    val menu = browserMenu.menuBuilder.build(context)
+                    
+                    // Get the modern toolbar system directly from the manager
+                    val modernToolbarSystem = modernToolbarManager?.modernToolbarSystem
+                    
+                    if (modernToolbarSystem != null) {
+                        // Find the contextual toolbar within the modern system
+                        val contextualToolbar = findContextualToolbarInModernSystem(modernToolbarSystem)
+                        val menuButton = contextualToolbar?.findViewById<android.view.View>(R.id.menu_button)
+                        
+                        if (menuButton != null) {
+                            // Show menu anchored to the modern toolbar menu button
+                            menu.show(anchor = menuButton)
+                            android.util.Log.d("ModernToolbar", "Menu opened successfully via modern toolbar")
+                        } else {
+                            // Fallback: show menu anchored to the modern toolbar system itself
+                            menu.show(anchor = modernToolbarSystem)
+                            android.util.Log.d("ModernToolbar", "Menu opened with fallback anchor")
+                        }
                     } else {
-                        android.util.Log.w("ModernToolbar", "Menu button not found in toolbar")
+                        android.util.Log.w("ModernToolbar", "Modern toolbar system not found, using fallback")
+                        // Ultimate fallback: show menu anchored to the browser layout
+                        menu.show(anchor = binding.browserLayout)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("ModernToolbar", "Menu button interaction failed", e)
+                    android.util.Log.e("ModernToolbar", "Failed to open menu via modern approach", e)
+                    // Final fallback: try the original button click approach
+                    try {
+                        val menuButton = browserToolbarView.view.findViewById<android.view.View>(
+                            mozilla.components.browser.toolbar.R.id.mozac_browser_toolbar_menu
+                        )
+                        menuButton?.performClick()
+                        android.util.Log.d("ModernToolbar", "Menu opened via fallback button click")
+                    } catch (e2: Exception) {
+                        android.util.Log.e("ModernToolbar", "All menu approaches failed", e2)
+                    }
                 }
             }
             com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarManager.NavigationAction.SEARCH -> {
@@ -587,6 +626,17 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         android.util.Log.d("ModernToolbar", "🔄 Hidden all old toolbar components")
     }
     
+    private fun findContextualToolbarInModernSystem(modernToolbarSystem: com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.ModernToolbarSystem): android.view.ViewGroup? {
+        // Search through the modern toolbar system's children to find the contextual toolbar
+        for (i in 0 until modernToolbarSystem.childCount) {
+            val child = modernToolbarSystem.getChildAt(i)
+            if (child is com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar) {
+                return child
+            }
+        }
+        return null
+    }
+
     private fun applySimpleScrollBehaviorFix() {
         val prefs = UserPreferences(requireContext())
         

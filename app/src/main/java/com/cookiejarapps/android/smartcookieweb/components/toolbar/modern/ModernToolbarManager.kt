@@ -22,7 +22,8 @@ class ModernToolbarManager(
     private val lifecycleOwner: LifecycleOwner
 ) {
     
-    private var modernToolbarSystem: ModernToolbarSystem? = null
+    var modernToolbarSystem: ModernToolbarSystem? = null
+        private set
     private var enhancedTabGroupView: EnhancedTabGroupView? = null
     private var modernContextualToolbar: com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar? = null
     private var browserToolbar: BrowserToolbar? = null
