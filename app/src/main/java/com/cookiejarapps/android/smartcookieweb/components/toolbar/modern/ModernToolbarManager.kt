@@ -49,12 +49,9 @@ class ModernToolbarManager(
             ToolbarPosition.BOTTOM -> initializeModernBottomToolbar()
         }
         
-        android.util.Log.d("ModernToolbarManager", "Initialized for position: $toolbarPosition")
     }
     
     private fun initializeTopToolbar() {
-        android.util.Log.d("ModernToolbarManager", "Initializing modern hybrid TOP/BOTTOM toolbar system")
-        
         // Create TWO modern toolbar systems for hybrid layout:
         // 1. Top system: Address bar only
         // 2. Bottom system: Tab bar + contextual toolbar
@@ -79,13 +76,11 @@ class ModernToolbarManager(
         browserToolbar?.let { toolbar ->
             (toolbar.parent as? ViewGroup)?.removeView(toolbar)
             topToolbarSystem.addComponent(toolbar, ModernToolbarSystem.ComponentType.ADDRESS_BAR)
-            android.util.Log.d("ModernToolbarManager", "Added address bar to TOP system")
         }
         
         // Connect engine view to top system for proper scroll behavior
         findEngineView(container)?.let { engineView ->
             topToolbarSystem.setEngineView(engineView)
-            android.util.Log.d("ModernToolbarManager", "Connected engine view to TOP system")
         }
         
         // BOTTOM SYSTEM: Tab group + contextual toolbar
@@ -110,8 +105,6 @@ class ModernToolbarManager(
         
         // Configure scroll behavior for both systems
         updateScrollBehavior()
-        
-        android.util.Log.d("ModernToolbarManager", "Initialized hybrid toolbar system - address bar at TOP, tabs+controls at BOTTOM")
     }
     
     private fun initializeModernBottomToolbar() {
@@ -140,19 +133,15 @@ class ModernToolbarManager(
         
         // Configure scroll behavior
         updateScrollBehavior()
-        
-        android.util.Log.d("ModernToolbarManager", "Initialized modern bottom toolbar system")
     }
     
     private fun createEnhancedTabGroupView() {
         enhancedTabGroupView = EnhancedTabGroupView(container.context).apply {
             setup(
                 onTabSelected = { tabId ->
-                    android.util.Log.d("ModernToolbarManager", "Tab selected: $tabId")
                     this@ModernToolbarManager.onTabSelected?.invoke(tabId)
                 },
                 onTabClosed = { tabId ->
-                    android.util.Log.d("ModernToolbarManager", "Tab closed: $tabId")
                     this@ModernToolbarManager.onTabClosed?.invoke(tabId)
                 }
             )
@@ -168,7 +157,6 @@ class ModernToolbarManager(
         browserToolbar?.let { toolbar ->
             // Remove from existing parent first
             (toolbar.parent as? ViewGroup)?.removeView(toolbar)
-            android.util.Log.d("ModernToolbarManager", "Removed BrowserToolbar from existing parent")
             
             modernToolbarSystem?.addComponent(
                 toolbar,
@@ -183,39 +171,30 @@ class ModernToolbarManager(
             // Restore the listener to make buttons actually work
             listener = object : com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar.ContextualToolbarListener {
                 override fun onBackClicked() { 
-                    android.util.Log.d("ModernToolbar", "Back clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.BACK) 
                 }
                 override fun onForwardClicked() { 
-                    android.util.Log.d("ModernToolbar", "Forward clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.FORWARD) 
                 }
                 override fun onShareClicked() { 
-                    android.util.Log.d("ModernToolbar", "Share clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.SHARE) 
                 }
                 override fun onSearchClicked() { 
-                    android.util.Log.d("ModernToolbar", "Search clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.SEARCH) 
                 }
                 override fun onNewTabClicked() { 
-                    android.util.Log.d("ModernToolbar", "New tab clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.NEW_TAB) 
                 }
                 override fun onTabCountClicked() { 
-                    android.util.Log.d("ModernToolbar", "Tab count clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.TAB_COUNT) 
                 }
                 override fun onMenuClicked() { 
-                    android.util.Log.d("ModernToolbar", "Menu clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.MENU) 
                 }
                 override fun onBookmarksClicked() { 
-                    android.util.Log.d("ModernToolbar", "Bookmarks clicked - original functionality")
                     onNavigationAction?.invoke(NavigationAction.BOOKMARKS) 
                 }
             }
-            android.util.Log.d("ModernToolbarManager", "Complete migration: Original theming + working functionality")
         }
         
         modernToolbarSystem?.addComponent(
@@ -230,12 +209,10 @@ class ModernToolbarManager(
     
     fun updateNavigationState(canGoBack: Boolean, canGoForward: Boolean) {
         // The original ContextualBottomToolbar handles its own navigation state
-        android.util.Log.d("ModernToolbarManager", "Navigation state: back=$canGoBack, forward=$canGoForward")
     }
     
     fun updateLoadingState(isLoading: Boolean) {
         // The original ContextualBottomToolbar handles loading state automatically
-        android.util.Log.d("ModernToolbarManager", "Loading state: $isLoading")
     }
     
     fun updateModernContext(
@@ -247,7 +224,6 @@ class ModernToolbarManager(
     ) {
         // Use the original ContextualBottomToolbar's updateForContext method
         modernContextualToolbar?.updateForContext(tab, canGoBack, canGoForward, tabCount, isHomepage)
-        android.util.Log.d("ModernToolbarManager", "Updated original toolbar context - tabs: $tabCount, homepage: $isHomepage")
     }
     
     private fun updateScrollBehavior() {
@@ -257,11 +233,9 @@ class ModernToolbarManager(
         if (prefs.hideBarWhileScrolling) {
             modernToolbarSystem?.enableScrolling()
             behavior?.setScrollingEnabled(true)
-            android.util.Log.d("ModernToolbarManager", "Enabled scroll behavior")
         } else {
             modernToolbarSystem?.disableScrolling()
             behavior?.setScrollingEnabled(false)
-            android.util.Log.d("ModernToolbarManager", "Disabled scroll behavior")
         }
     }
     

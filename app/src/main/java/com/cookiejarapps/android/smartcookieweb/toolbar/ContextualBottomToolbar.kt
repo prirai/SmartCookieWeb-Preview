@@ -43,6 +43,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
     private lateinit var menuButton: ImageButton
 
     var listener: ContextualToolbarListener? = null
+    
+    // Track bookmark state like BrowserMenu does
+    private var isShowingBookmarkIcon = false
 
     init {
         orientation = HORIZONTAL
@@ -66,9 +69,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
 
     private fun setupClickListeners() {
         backButton.setOnClickListener { 
-            // Check if it's showing bookmarks icon or back button
-            if (backButton.drawable.constantState == 
-                ContextCompat.getDrawable(context, R.drawable.ic_baseline_bookmark)?.constantState) {
+            // Simple approach: Use the same pattern as BrowserMenu
+            // Check context state instead of drawable comparison
+            if (isShowingBookmarkIcon) {
                 listener?.onBookmarksClicked()
             } else {
                 listener?.onBackClicked()
@@ -115,6 +118,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         backButton.isEnabled = true
         backButton.alpha = 1.0f
         
+        // Set bookmark state flag - this is the key fix!
+        isShowingBookmarkIcon = true
+        
         forwardButton.visibility = View.VISIBLE
         forwardButton.setImageResource(R.drawable.ic_ios_forward)
         forwardButton.isEnabled = canGoForward
@@ -144,6 +150,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         backButton.isEnabled = canGoBack
         backButton.alpha = if (canGoBack) 1.0f else 0.4f
         
+        // Reset bookmark state flag
+        isShowingBookmarkIcon = false
+        
         forwardButton.visibility = View.GONE
         
         shareButton.visibility = View.VISIBLE
@@ -171,6 +180,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         backButton.setImageResource(R.drawable.ic_ios_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
+        
+        // Reset bookmark state flag
+        isShowingBookmarkIcon = false
         
         forwardButton.visibility = View.VISIBLE
         forwardButton.setImageResource(R.drawable.ic_ios_forward) // Reset to forward icon
@@ -200,6 +212,9 @@ class ContextualBottomToolbar @JvmOverloads constructor(
         backButton.setImageResource(R.drawable.ic_ios_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
+        
+        // Reset bookmark state flag
+        isShowingBookmarkIcon = false
         
         forwardButton.visibility = View.GONE
         

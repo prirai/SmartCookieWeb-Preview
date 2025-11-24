@@ -46,7 +46,6 @@ class ModernToolbarSystem @JvmOverloads constructor(
     }
 
     fun addComponent(component: View, type: ComponentType) {
-        android.util.Log.d("ModernToolbar", "Adding component: ${component.javaClass.simpleName}, type: $type")
         
         val layoutParams = LayoutParams(
             LayoutParams.MATCH_PARENT,
@@ -57,22 +56,17 @@ class ModernToolbarSystem @JvmOverloads constructor(
             ComponentType.TAB_GROUP -> {
                 tabGroupComponent = component
                 addView(component, 0, layoutParams) // Top position
-                android.util.Log.d("ModernToolbar", "Added tab group component at index 0")
             }
             ComponentType.ADDRESS_BAR -> {
                 addressBarComponent = component
                 val index = if (tabGroupComponent != null) 1 else 0
                 addView(component, index, layoutParams)
-                android.util.Log.d("ModernToolbar", "Added address bar component at index $index")
             }
             ComponentType.CONTEXTUAL -> {
                 contextualComponent = component
                 addView(component, layoutParams) // Bottom position
-                android.util.Log.d("ModernToolbar", "Added contextual component at bottom")
             }
         }
-        
-        android.util.Log.d("ModernToolbar", "Now have ${childCount} children total")
         
         // Update engine view about our new height
         updateDynamicToolbarHeight()
@@ -104,42 +98,35 @@ class ModernToolbarSystem @JvmOverloads constructor(
     
     fun setToolbarPosition(position: ToolbarPosition) {
         toolbarPosition = position
-        android.util.Log.d("ModernToolbar", "Set toolbar position: $position")
     }
 
     private fun updateDynamicToolbarHeight() {
         val totalHeight = getTotalHeight()
         if (totalHeight > 0) {
             engineView?.setDynamicToolbarMaxHeight(totalHeight)
-            android.util.Log.d("ModernToolbar", "Updated dynamic height: $totalHeight")
         }
     }
 
     fun getTotalHeight(): Int {
         var totalHeight = 0
-        android.util.Log.d("ModernToolbar", "Calculating total height - childCount: $childCount")
         
         for (i in 0 until childCount) {
             val child = getChildAt(i)
-            android.util.Log.d("ModernToolbar", "Child $i: ${child.javaClass.simpleName}, visible=${child.isVisible}, height=${child.height}")
             if (child.isVisible) {
                 totalHeight += child.height
             }
         }
         
-        android.util.Log.d("ModernToolbar", "Total calculated height: $totalHeight")
         return totalHeight
     }
 
     override fun enableScrolling() {
         scrollingEnabled = true
-        android.util.Log.d("ModernToolbar", "Scrolling enabled")
     }
 
     override fun disableScrolling() {
         scrollingEnabled = false
         expand()
-        android.util.Log.d("ModernToolbar", "Scrolling disabled")
     }
 
     override fun expand() {
@@ -188,10 +175,6 @@ class ModernToolbarSystem @JvmOverloads constructor(
         
         // Apply clipping to engine view
         engineView?.setVerticalClipping(currentOffset)
-        
-        // Enhanced logging with Y position and direction
-        val direction = if (toolbarPosition == ToolbarPosition.TOP) "UP" else "DOWN"
-        android.util.Log.d("ModernToolbar", "📍 Y Position: $translationY ($direction), Offset: $currentOffset/$totalHeight, Alpha: $alpha")
     }
 
     fun getCurrentOffset(): Int = currentOffset
