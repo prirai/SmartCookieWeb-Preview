@@ -49,13 +49,21 @@
                 android:elevation="24dp"
                 android:visibility="gone" />
 
-            <!-- Tab Groups Bar positioned above browser toolbar -->
+            <!-- Tab Groups Bar positioned above browser toolbar (HIDDEN - now integrated into toolbar) -->
             <com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupBar
                 android:id="@+id/tabGroupBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginBottom="56dp"
+                android:visibility="gone" />
+
+            <!-- Bottom Toolbar (HIDDEN - now integrated into toolbar) -->
+            <com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
+                android:id="@+id/contextualBottomToolbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
                 android:visibility="gone" />
 
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
@@ -65,18 +73,8 @@
             android:id="@+id/loginSelectBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_constraintBottom_toTopOf="@+id/contextualBottomToolbar"
-            app:layout_constraintTop_toBottomOf="@id/browserLayout" />
-
-        <!-- Contextual Bottom Toolbar -->
-        <com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
-            android:id="@+id/contextualBottomToolbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="visible"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintTop_toBottomOf="@id/browserLayout" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <mozilla.components.feature.readerview.view.ReaderViewControlsBar

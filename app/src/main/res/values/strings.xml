@@ -2,6 +2,9 @@
 <resources>
   <string name="app_name" translatable="false">EchoFox</string>
   <string name="url_project" translatable="false">https://github.com/CookieJarApps/SmartCookieWeb-preview</string>
+  
+  <!-- Behavior class names -->
+  <string name="hide_bottom_view_on_scroll_behavior" translatable="false">com.cookiejarapps.android.smartcookieweb.behavior.HideBottomViewOnScrollBehavior</string>
 
   <string name="key_javascript_enabled" translatable="false">javascript_enabled</string>
   <string name="key_app_theme_type" translatable="false">app_theme_type</string>

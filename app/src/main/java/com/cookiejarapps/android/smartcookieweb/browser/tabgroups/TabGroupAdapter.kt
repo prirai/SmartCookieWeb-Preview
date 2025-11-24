@@ -3,6 +3,7 @@ package com.cookiejarapps.android.smartcookieweb.browser.tabgroups
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
@@ -63,8 +64,8 @@ class TabGroupAdapter(
                 val store = binding.root.context.components.store
                 val faviconCache = binding.root.context.components.faviconCache
                 
-                // Create circular favicon for each tab in the group
-                groupWithTabs.tabIds.forEach { tabId ->
+                // Create circular favicon for each tab in the group (maintain original order)
+                groupWithTabs.tabIds.forEachIndexed { index, tabId ->
                     val tab = store.state.tabs.find { it.id == tabId }
                     if (tab != null) {
                         createFaviconCircle(faviconContainer, tab, tabId == selectedTabId, faviconCache)
@@ -83,15 +84,47 @@ class TabGroupAdapter(
             val faviconView = LayoutInflater.from(context)
                 .inflate(R.layout.tab_favicon_circle, container, false)
             
+            val faviconContainer = faviconView.findViewById<FrameLayout>(R.id.faviconContainer)
             val imageView = faviconView.findViewById<ImageView>(R.id.faviconImage)
             val selectionIndicator = faviconView.findViewById<View>(R.id.selectionIndicator)
+            val closeButton = faviconView.findViewById<ImageView>(R.id.closeButton)
             
             // Set selection state
             selectionIndicator.isVisible = isSelected
             
-            // Set favicon
+            // Show close button on hover/long press (for now always visible for testing)
+            closeButton.isVisible = true
+            
+            // Set favicon with smart circular clipping
             if (tab.content.icon != null) {
-                imageView.setImageBitmap(tab.content.icon)
+                val icon = tab.content.icon!!
+                val minDimension = kotlin.math.min(icon.width, icon.height)
+                
+                // Create circular bitmap with proper sizing
+                val circularIcon = android.graphics.Bitmap.createBitmap(minDimension, minDimension, android.graphics.Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(circularIcon)
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                }
+                
+                // Draw circular background
+                val radius = minDimension / 2f
+                canvas.drawCircle(radius, radius, radius, paint)
+                
+                // Clip to circle and draw original icon
+                paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+                
+                // Scale and center the original icon
+                val srcRect = android.graphics.Rect(
+                    (icon.width - minDimension) / 2,
+                    (icon.height - minDimension) / 2,
+                    (icon.width + minDimension) / 2,
+                    (icon.height + minDimension) / 2
+                )
+                val dstRect = android.graphics.Rect(0, 0, minDimension, minDimension)
+                canvas.drawBitmap(icon, srcRect, dstRect, paint)
+                
+                imageView.setImageBitmap(circularIcon)
             } else {
                 // Try to load from cache
                 CoroutineScope(Dispatchers.Main).launch {
@@ -105,23 +138,38 @@ class TabGroupAdapter(
                 }
             }
             
-            // Set click listener with debug logging
+            // Set click listener for tab switching
             faviconView.setOnClickListener {
                 android.util.Log.d("TabGroupAdapter", "Favicon clicked for tab: ${tab.id}")
                 onTabClick(tab.id)
             }
             
-            // Also set click listener on the image view itself for better touch target
-            imageView.setOnClickListener {
-                android.util.Log.d("TabGroupAdapter", "Favicon image clicked for tab: ${tab.id}")
+            faviconContainer.setOnClickListener {
+                android.util.Log.d("TabGroupAdapter", "Favicon container clicked for tab: ${tab.id}")
                 onTabClick(tab.id)
             }
             
-            // Make sure the view is clickable and focusable
+            // Set close button click listener
+            closeButton.setOnClickListener {
+                android.util.Log.d("TabGroupAdapter", "Close button clicked for tab: ${tab.id}")
+                // Close the tab
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        val tabsUseCases = context.components.tabsUseCases
+                        tabsUseCases.removeTab(tab.id)
+                    } catch (e: Exception) {
+                        android.util.Log.e("TabGroupAdapter", "Error closing tab: ${e.message}")
+                    }
+                }
+            }
+            
+            // Make sure the views are clickable and focusable
             faviconView.isClickable = true
             faviconView.isFocusable = true
-            imageView.isClickable = true
-            imageView.isFocusable = true
+            faviconContainer.isClickable = true
+            faviconContainer.isFocusable = true
+            closeButton.isClickable = true
+            closeButton.isFocusable = true
             
             container.addView(faviconView)
         }

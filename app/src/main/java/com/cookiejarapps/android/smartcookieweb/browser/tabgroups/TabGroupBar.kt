@@ -91,8 +91,30 @@ class TabGroupBar @JvmOverloads constructor(
             val selectedTabId = context.components.store.state.selectedTabId
             adapter?.updateCurrentGroup(currentGroup, selectedTabId)
             isVisible = true
+            
+            // Setup scroll behavior when tab group bar becomes visible (if not already done)
+            post {
+                setupScrollBehaviorIfNeeded()
+            }
         } else {
             isVisible = false
+        }
+    }
+    
+    private fun setupScrollBehaviorIfNeeded() {
+        val prefs = com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences(context)
+        if (prefs.hideBarWhileScrolling && height > 0) {
+            android.util.Log.d("TabGroupBar", "Setting up scroll behavior, height: $height")
+            (layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.apply {
+                if (behavior == null) {
+                    behavior = mozilla.components.ui.widgets.behavior.EngineViewScrollingBehavior(
+                        context,
+                        null,
+                        mozilla.components.ui.widgets.behavior.ViewPosition.BOTTOM
+                    )
+                    android.util.Log.d("TabGroupBar", "Applied scroll behavior to tab group bar")
+                }
+            }
         }
     }
     

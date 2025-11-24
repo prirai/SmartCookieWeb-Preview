@@ -45,7 +45,14 @@ class TabGroupMiddleware(
         val newTabUrl = newTab.content.url
         
         // Add debug logging to see what's happening
-        android.util.Log.d("TabGroupMiddleware", "New tab added: ${newTab.id}, URL: $newTabUrl")
+        android.util.Log.d("TabGroupMiddleware", "New tab added: ${newTab.id}, URL: $newTabUrl, Source: ${newTab.source}")
+        
+        // Don't auto-group tabs created via NEW_TAB button or address bar
+        if (newTab.source == mozilla.components.browser.state.state.SessionState.Source.Internal.NewTab ||
+            newTab.source == mozilla.components.browser.state.state.SessionState.Source.Internal.UserEntered) {
+            android.util.Log.d("TabGroupMiddleware", "Skipping grouping for manually created tab")
+            return
+        }
         
         // Check both the URL in the tab and the URL being loaded
         val effectiveUrl = if (newTabUrl.isBlank() || newTabUrl == "about:blank") {
@@ -101,24 +108,15 @@ class TabGroupMiddleware(
                             )
                         } catch (e: Exception) {
                             android.util.Log.e("TabGroupMiddleware", "Error in cross-domain grouping", e)
-                            // Fallback to normal auto-grouping
-                            tabGroupManager.autoGroupTab(newTab.id, effectiveUrl)
                         }
                     }
                 } else {
-                    android.util.Log.d("TabGroupMiddleware", "Same domain or unknown, using auto-grouping")
-                    // Same domain or unknown - use normal auto-grouping
-                    CoroutineScope(Dispatchers.IO).launch {
-                        tabGroupManager.autoGroupTab(newTab.id, effectiveUrl)
-                    }
+                    android.util.Log.d("TabGroupMiddleware", "Same domain or unknown, skipping grouping")
+                    // For same domain, don't force grouping unless it's a natural fit
                 }
             }
         } else {
-            android.util.Log.d("TabGroupMiddleware", "No source tab found, using auto-grouping")
-            // No source tab - use normal auto-grouping
-            CoroutineScope(Dispatchers.IO).launch {
-                tabGroupManager.autoGroupTab(newTab.id, effectiveUrl)
-            }
+            android.util.Log.d("TabGroupMiddleware", "No source tab found, skipping grouping")
         }
     }
     
