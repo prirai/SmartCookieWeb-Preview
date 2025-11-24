@@ -4,16 +4,20 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.view.LayoutInflater
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import com.cookiejarapps.android.smartcookieweb.R
+import mozilla.components.browser.state.state.TabSessionState
 
 /**
- * Revolutionary contextual toolbar with beautiful animations, 
- * adaptive buttons, and intelligent state management.
+ * Revolutionary modern contextual toolbar with complete feature parity to the original.
+ * Features context-aware button switching, sophisticated state management, and beautiful animations.
  */
 class ModernContextualToolbar @JvmOverloads constructor(
     context: Context,
@@ -21,245 +25,369 @@ class ModernContextualToolbar @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : LinearLayout(context, attrs, defStyleAttr) {
 
-    // Action buttons
+    interface ModernContextualToolbarListener {
+        fun onBackClicked()
+        fun onForwardClicked()
+        fun onShareClicked()
+        fun onSearchClicked()
+        fun onNewTabClicked()
+        fun onTabCountClicked()
+        fun onMenuClicked()
+        fun onBookmarksClicked()
+        fun onRefreshClicked()
+    }
+
+    // All action buttons from original
     private lateinit var backButton: ImageButton
     private lateinit var forwardButton: ImageButton
-    private lateinit var refreshButton: ImageButton
-    private lateinit var bookmarkButton: ImageButton
     private lateinit var shareButton: ImageButton
+    private lateinit var searchButton: ImageButton
+    private lateinit var newTabButton: ImageButton
+    private lateinit var refreshButton: ImageButton
+    private lateinit var tabCountButton: FrameLayout
+    private lateinit var tabCountText: TextView
     private lateinit var menuButton: ImageButton
 
-    // Navigation callbacks
-    private var onBackClick: (() -> Unit)? = null
-    private var onForwardClick: (() -> Unit)? = null
-    private var onRefreshClick: (() -> Unit)? = null
-    private var onBookmarkClick: (() -> Unit)? = null
-    private var onShareClick: (() -> Unit)? = null
-    private var onTabCountClick: (() -> Unit)? = null
-    private var onMenuClick: (() -> Unit)? = null
+    var listener: ModernContextualToolbarListener? = null
 
     // State tracking
     private var canGoBack = false
     private var canGoForward = false
     private var isLoading = false
-    private var isBookmarked = false
-
-    // Animation
-    private val pulseAnimator = ValueAnimator.ofFloat(1f, 1.1f, 1f)
+    private var currentTabCount = 1
+    private var isHomepage = false
+    private var currentTab: TabSessionState? = null
 
     init {
-        setupToolbar()
-        setupAnimations()
+        setupModernToolbar()
     }
 
-    private fun setupToolbar() {
+    private fun setupModernToolbar() {
         orientation = HORIZONTAL
         gravity = android.view.Gravity.CENTER_VERTICAL
-        setPadding(16, 8, 16, 8)
+        setPadding(12, 8, 12, 8) // Increased padding for better spacing
         
-        // CRITICAL: Fix height to prevent screen takeover
+        // CRITICAL: Increased height for better usability
         layoutParams = android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            60 // Fixed height in pixels
+            72 // Increased height for better touch targets
         )
         
-        // Create action buttons with beautiful styling
-        createActionButtons()
-        setupButtonListeners()
-        updateButtonStates()
+        // Create modern layout with original functionality
+        createModernLayout()
+        setupModernClickListeners()
         
-        // Add subtle background
-        setBackgroundResource(R.drawable.modern_toolbar_background)
-        elevation = 2f
+        // Modern styling with proper dark mode support
+        setBackgroundColor(ContextCompat.getColor(context, android.R.color.background_dark))
+        elevation = 8f
     }
 
-    private fun createActionButtons() {
+    private fun createModernLayout() {
+        // Create all buttons with modern styling but original functionality
         val buttonSize = 48
-        val buttonMargin = 4
         
-        // Back button
-        backButton = createStyledButton(R.drawable.ic_arrow_back, "Go back").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // Back button (also serves as bookmarks button on homepage)
+        backButton = createModernButton(R.drawable.ic_arrow_back, "Go back", buttonSize)
+        addView(backButton, createWeightedLayoutParams())
         
-        // Forward button
-        forwardButton = createStyledButton(R.drawable.ic_arrow_forward, "Go forward").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // Forward button (hidden by default, context-aware)
+        forwardButton = createModernButton(R.drawable.ic_arrow_forward, "Go forward", buttonSize)
+        addView(forwardButton, createWeightedLayoutParams())
+        forwardButton.visibility = View.GONE
         
-        // Refresh/Stop button
-        refreshButton = createStyledButton(R.drawable.ic_refresh, "Refresh").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // Share button (context-aware)
+        shareButton = createModernButton(R.drawable.ic_share, "Share", buttonSize)
+        addView(shareButton, createWeightedLayoutParams())
         
-        // Spacer to push remaining buttons to the right
-        val spacer = View(context).apply {
-            addView(this, LayoutParams(0, 1, 1f))
-        }
+        // Search button (for homepage context)
+        searchButton = createModernButton(android.R.drawable.ic_search_category_default, "Search", buttonSize)
+        addView(searchButton, createWeightedLayoutParams())
+        searchButton.visibility = View.GONE
         
-        // Bookmark button
-        bookmarkButton = createStyledButton(R.drawable.ic_bookmark_border, "Bookmark").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // New Tab button (context-aware)
+        newTabButton = createModernButton(android.R.drawable.ic_input_add, "New tab", buttonSize)
+        addView(newTabButton, createWeightedLayoutParams())
+        newTabButton.visibility = View.GONE
         
-        // Share button
-        shareButton = createStyledButton(R.drawable.ic_share, "Share").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // Refresh button (additional feature)
+        refreshButton = createModernButton(R.drawable.ic_refresh, "Refresh", buttonSize)
+        addView(refreshButton, createWeightedLayoutParams())
+        refreshButton.visibility = View.GONE
         
-        // Tab count button
-        val tabCountButton = createStyledButton(android.R.drawable.ic_menu_view, "Tabs").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-            setOnClickListener {
-                onTabCountClick?.invoke()
-                animateButtonPress(this)
-            }
-        }
+        // Tab count button (styled like original with background and text)
+        createModernTabCountButton()
         
-        // Menu button  
-        menuButton = createStyledButton(R.drawable.ic_more_vert, "More options").apply {
-            addView(this, createButtonLayoutParams(buttonSize, buttonMargin))
-        }
+        // Menu button (always visible)
+        menuButton = createModernButton(R.drawable.ic_more_vert, "More options", buttonSize)
+        addView(menuButton, createWeightedLayoutParams())
     }
 
-    private fun createStyledButton(iconRes: Int, contentDescription: String): ImageButton {
+    private fun createModernButton(iconRes: Int, contentDescription: String, size: Int): ImageButton {
         return ImageButton(context).apply {
             setImageResource(iconRes)
             this.contentDescription = contentDescription
-            background = ContextCompat.getDrawable(context, R.drawable.modern_button_background)
-            scaleType = android.widget.ImageView.ScaleType.CENTER
-            imageTintList = ContextCompat.getColorStateList(context, R.color.toolbar_icon_tint)
+            background = ContextCompat.getDrawable(context, android.R.drawable.list_selector_background)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            setColorFilter(ContextCompat.getColor(context, android.R.color.white))
+            isClickable = true
+            isFocusable = true
+            // Ensure proper padding to prevent icon clipping
+            setPadding(12, 12, 12, 12)
+        }
+    }
+
+    private fun createWeightedLayoutParams(): LayoutParams {
+        return LayoutParams(0, LayoutParams.MATCH_PARENT).apply {
+            weight = 1f
+            setMargins(2, 4, 2, 4) // Reduced margins to prevent clipping
+        }
+    }
+
+    private fun createModernTabCountButton() {
+        tabCountButton = FrameLayout(context).apply {
+            // Tab count background (square with border like original)
+            val backgroundView = android.widget.ImageView(context).apply {
+                setImageResource(android.R.drawable.ic_menu_view)
+                setColorFilter(ContextCompat.getColor(context, android.R.color.white))
+                layoutParams = FrameLayout.LayoutParams(24, 24).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+            }
+            addView(backgroundView)
             
-            // Add ripple effect
-            foreground = ContextCompat.getDrawable(context, R.drawable.modern_button_ripple)
+            // Tab count text
+            tabCountText = TextView(context).apply {
+                text = "1"
+                textSize = 11f
+                gravity = android.view.Gravity.CENTER
+                setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                maxLines = 1
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+            }
+            addView(tabCountText)
+            
+            background = ContextCompat.getDrawable(context, android.R.drawable.list_selector_background)
+            contentDescription = "Tabs"
             isClickable = true
             isFocusable = true
         }
+        
+        addView(tabCountButton, createWeightedLayoutParams())
     }
 
-    private fun createButtonLayoutParams(size: Int, margin: Int): LayoutParams {
-        return LayoutParams(size, size).apply {
-            setMargins(margin, 0, margin, 0)
-        }
-    }
-
-    private fun setupButtonListeners() {
+    private fun setupModernClickListeners() {
         backButton.setOnClickListener { 
-            onBackClick?.invoke()
-            animateButtonPress(backButton)
+            // Check if it's showing bookmarks icon or back button (same logic as original)
+            if (backButton.drawable.constantState == 
+                ContextCompat.getDrawable(context, android.R.drawable.btn_star_big_off)?.constantState) {
+                listener?.onBookmarksClicked()
+            } else {
+                listener?.onBackClicked()
+            }
+            animateModernButtonPress(backButton)
         }
         
         forwardButton.setOnClickListener { 
-            onForwardClick?.invoke() 
-            animateButtonPress(forwardButton)
-        }
-        
-        refreshButton.setOnClickListener { 
-            onRefreshClick?.invoke()
-            animateRefreshButton()
-        }
-        
-        bookmarkButton.setOnClickListener { 
-            onBookmarkClick?.invoke()
-            animateBookmarkToggle()
+            listener?.onForwardClicked()
+            animateModernButtonPress(forwardButton)
         }
         
         shareButton.setOnClickListener { 
-            onShareClick?.invoke()
-            animateButtonPress(shareButton)
+            listener?.onShareClicked()
+            animateModernButtonPress(shareButton)
+        }
+        
+        searchButton.setOnClickListener { 
+            listener?.onSearchClicked()
+            animateModernButtonPress(searchButton)
+        }
+        
+        newTabButton.setOnClickListener { 
+            listener?.onNewTabClicked()
+            animateModernButtonPress(newTabButton)
+        }
+        
+        refreshButton.setOnClickListener { 
+            listener?.onRefreshClicked()
+            animateRefreshButton()
+        }
+        
+        tabCountButton.setOnClickListener { 
+            listener?.onTabCountClicked()
+            animateModernButtonPress(tabCountButton)
         }
         
         menuButton.setOnClickListener { 
-            onMenuClick?.invoke()
-            animateButtonPress(menuButton)
+            listener?.onMenuClicked()
+            animateModernButtonPress(menuButton)
         }
     }
 
-    private fun setupAnimations() {
-        pulseAnimator.apply {
-            duration = 150
-            repeatCount = 0
-        }
-    }
-
-    // Public API for setting callbacks
-    fun setNavigationCallbacks(
-        onBack: (() -> Unit)? = null,
-        onForward: (() -> Unit)? = null,
-        onRefresh: (() -> Unit)? = null,
-        onBookmark: (() -> Unit)? = null,
-        onShare: (() -> Unit)? = null,
-        onTabCount: (() -> Unit)? = null,
-        onMenu: (() -> Unit)? = null
+    /**
+     * Revolutionary context-aware update method - exactly like the original!
+     * Updates toolbar based on current browsing context with intelligent button switching
+     */
+    fun updateForModernContext(
+        tab: TabSessionState?,
+        canGoBack: Boolean,
+        canGoForward: Boolean,
+        tabCount: Int,
+        isHomepage: Boolean = false
     ) {
-        onBackClick = onBack
-        onForwardClick = onForward
-        onRefreshClick = onRefresh
-        onBookmarkClick = onBookmark
-        onShareClick = onShare
-        onTabCountClick = onTabCount
-        onMenuClick = onMenu
-    }
-
-    // Public API for updating button states
-    fun updateNavigationState(canBack: Boolean, canForward: Boolean) {
-        canGoBack = canBack
-        canGoForward = canForward
-        updateButtonStates()
-    }
-
-    fun updateLoadingState(loading: Boolean) {
-        isLoading = loading
-        updateRefreshButton()
-    }
-
-    fun updateBookmarkState(bookmarked: Boolean) {
-        isBookmarked = bookmarked
-        updateBookmarkButton()
-    }
-
-    private fun updateButtonStates() {
-        // Update back button
-        backButton.apply {
-            isEnabled = canGoBack
-            alpha = if (canGoBack) 1f else 0.5f
+        this.currentTab = tab
+        this.canGoBack = canGoBack
+        this.canGoForward = canGoForward
+        this.currentTabCount = tabCount
+        this.isHomepage = isHomepage
+        
+        android.util.Log.d("ModernContextualToolbar", "📱 Context update: homepage=$isHomepage, canBack=$canGoBack, canForward=$canGoForward, tabs=$tabCount")
+        
+        when {
+            isHomepage -> showModernHomepageContext(tabCount, canGoForward)
+            canGoForward -> showModernFullNavigationContext(tabCount)
+            tab != null && !isHomepage -> showModernWebsiteContext(canGoBack, tabCount)
+            else -> showModernDefaultContext(tabCount)
         }
         
-        // Update forward button
-        forwardButton.apply {
-            isEnabled = canGoForward
-            alpha = if (canGoForward) 1f else 0.5f
-        }
+        updateModernTabCount(tabCount)
     }
 
-    private fun updateRefreshButton() {
-        if (isLoading) {
-            refreshButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            refreshButton.contentDescription = "Stop loading"
-            // Add rotation animation
-            refreshButton.animate()
-                .rotation(refreshButton.rotation + 180f)
-                .setDuration(300)
-                .start()
-        } else {
-            refreshButton.setImageResource(R.drawable.ic_refresh)
-            refreshButton.contentDescription = "Refresh"
-        }
-    }
-
-    private fun updateBookmarkButton() {
-        val iconRes = if (isBookmarked) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border
-        bookmarkButton.setImageResource(iconRes)
+    /**
+     * Homepage context: bookmarks, forward(enabled/disabled), search, tabs, menu
+     */
+    private fun showModernHomepageContext(tabCount: Int, canGoForward: Boolean = false) {
+        android.util.Log.d("ModernContextualToolbar", "🏠 Showing homepage context")
         
-        if (isBookmarked) {
-            bookmarkButton.imageTintList = ContextCompat.getColorStateList(context, R.color.accent_color)
-        } else {
-            bookmarkButton.imageTintList = ContextCompat.getColorStateList(context, R.color.toolbar_icon_tint)
-        }
+        // Always show the toolbar on homepage
+        this.visibility = View.VISIBLE
+        
+        // Show: bookmarks, forward(enabled/disabled), search, tabs, menu
+        backButton.visibility = View.VISIBLE
+        backButton.setImageResource(android.R.drawable.btn_star_big_off) // Bookmarks icon
+        backButton.isEnabled = true
+        backButton.alpha = 1.0f
+        
+        forwardButton.visibility = View.VISIBLE
+        forwardButton.setImageResource(R.drawable.ic_arrow_forward)
+        forwardButton.isEnabled = canGoForward
+        forwardButton.alpha = if (canGoForward) 1.0f else 0.4f
+        
+        shareButton.visibility = View.GONE
+        
+        searchButton.visibility = View.VISIBLE
+        searchButton.isEnabled = true
+        searchButton.alpha = 1.0f
+        
+        newTabButton.visibility = View.GONE
+        refreshButton.visibility = View.GONE
+        
+        tabCountButton.visibility = View.VISIBLE
+        menuButton.visibility = View.VISIBLE
     }
 
-    // Beautiful animations
-    private fun animateButtonPress(button: ImageButton) {
+    /**
+     * Website context: back, share, new tab, tabs, menu
+     */
+    private fun showModernWebsiteContext(canGoBack: Boolean, tabCount: Int) {
+        android.util.Log.d("ModernContextualToolbar", "🌐 Showing website context")
+        
+        // Show: back, share, new tab, tabs, menu
+        backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
+        backButton.isEnabled = canGoBack
+        backButton.alpha = if (canGoBack) 1.0f else 0.4f
+        
+        forwardButton.visibility = View.GONE
+        
+        shareButton.visibility = View.VISIBLE
+        shareButton.isEnabled = true
+        shareButton.alpha = 1.0f
+        
+        searchButton.visibility = View.GONE
+        
+        newTabButton.visibility = View.VISIBLE
+        newTabButton.isEnabled = true
+        newTabButton.alpha = 1.0f
+        
+        refreshButton.visibility = View.GONE
+        
+        tabCountButton.visibility = View.VISIBLE
+        menuButton.visibility = View.VISIBLE
+    }
+
+    /**
+     * Full navigation context: back, forward, new tab, tabs, menu
+     */
+    private fun showModernFullNavigationContext(tabCount: Int) {
+        android.util.Log.d("ModernContextualToolbar", "🔄 Showing full navigation context")
+        
+        // Show: back, forward, new tab, tabs, menu
+        backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
+        backButton.isEnabled = true
+        backButton.alpha = 1.0f
+        
+        forwardButton.visibility = View.VISIBLE
+        forwardButton.setImageResource(R.drawable.ic_arrow_forward) // Reset to forward icon
+        forwardButton.isEnabled = true
+        forwardButton.alpha = 1.0f
+        
+        shareButton.visibility = View.GONE
+        
+        searchButton.visibility = View.GONE
+        
+        newTabButton.visibility = View.VISIBLE
+        newTabButton.isEnabled = true
+        newTabButton.alpha = 1.0f
+        
+        refreshButton.visibility = View.GONE
+        
+        tabCountButton.visibility = View.VISIBLE
+        menuButton.visibility = View.VISIBLE
+    }
+
+    /**
+     * Default/fallback context
+     */
+    private fun showModernDefaultContext(tabCount: Int) {
+        android.util.Log.d("ModernContextualToolbar", "⚪ Showing default context")
+        
+        // Show basic navigation
+        backButton.visibility = View.VISIBLE
+        backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
+        backButton.isEnabled = true
+        backButton.alpha = 1.0f
+        
+        forwardButton.visibility = View.GONE
+        
+        shareButton.visibility = View.VISIBLE
+        shareButton.isEnabled = true
+        shareButton.alpha = 1.0f
+        
+        searchButton.visibility = View.GONE
+        
+        newTabButton.visibility = View.VISIBLE
+        refreshButton.visibility = View.GONE
+        
+        tabCountButton.visibility = View.VISIBLE
+        menuButton.visibility = View.VISIBLE
+    }
+
+    /**
+     * Update tab count display (exactly like original)
+     */
+    private fun updateModernTabCount(count: Int) {
+        tabCountText.text = if (count > 99) "99+" else count.toString()
+        
+        // Update content description for accessibility
+        tabCountButton.contentDescription = "Tabs: $count"
+    }
+
+    // Modern animations for beautiful user experience
+    private fun animateModernButtonPress(button: View) {
         button.animate()
             .scaleX(0.9f)
             .scaleY(0.9f)
@@ -273,7 +401,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
             }
             .start()
         
-        // Haptic feedback
+        // Haptic feedback for modern experience
         button.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
     }
 
@@ -283,41 +411,40 @@ class ModernContextualToolbar @JvmOverloads constructor(
             .setDuration(500)
             .start()
         
-        animateButtonPress(refreshButton)
+        animateModernButtonPress(refreshButton)
     }
 
-    private fun animateBookmarkToggle() {
-        // Heart-like animation for bookmark
-        bookmarkButton.animate()
-            .scaleX(1.3f)
-            .scaleY(1.3f)
-            .setDuration(200)
-            .withEndAction {
-                bookmarkButton.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(200)
-                    .start()
-            }
-            .start()
+    /**
+     * Update loading state and refresh button appearance
+     */
+    fun updateLoadingState(loading: Boolean) {
+        isLoading = loading
         
-        // Update state after animation
-        postDelayed({ updateBookmarkButton() }, 100)
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        
-        // Draw subtle separator lines between button groups
-        val paint = Paint().apply {
-            color = ContextCompat.getColor(context, android.R.color.darker_gray)
-            alpha = 50
-            strokeWidth = 1f
+        if (isLoading) {
+            refreshButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            refreshButton.contentDescription = "Stop loading"
+            refreshButton.animate()
+                .rotation(refreshButton.rotation + 180f)
+                .setDuration(300)
+                .start()
+        } else {
+            refreshButton.setImageResource(R.drawable.ic_refresh)
+            refreshButton.contentDescription = "Refresh"
         }
+    }
+
+    /**
+     * Public API for updating navigation states (similar to original)
+     */
+    fun updateNavigationState(canBack: Boolean, canForward: Boolean) {
+        canGoBack = canBack
+        canGoForward = canForward
         
-        // Draw separators
-        val separatorX1 = refreshButton.right + 8f
-        
-        canvas.drawLine(separatorX1, 16f, separatorX1, height - 16f, paint)
+        // Update the current context with new navigation state
+        updateForModernContext(currentTab, canBack, canForward, currentTabCount, isHomepage)
+    }
+
+    companion object {
+        const val ANIMATION_DURATION = 150L
     }
 }

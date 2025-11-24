@@ -24,7 +24,7 @@ class ModernToolbarManager(
     
     private var modernToolbarSystem: ModernToolbarSystem? = null
     private var enhancedTabGroupView: EnhancedTabGroupView? = null
-    private var modernContextualToolbar: ModernContextualToolbar? = null
+    private var modernContextualToolbar: com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar? = null
     private var browserToolbar: BrowserToolbar? = null
     
     // Controllers and callbacks
@@ -119,16 +119,44 @@ class ModernToolbarManager(
     }
     
     private fun createModernContextualToolbar() {
-        modernContextualToolbar = ModernContextualToolbar(container.context).apply {
-            setNavigationCallbacks(
-                onBack = { onNavigationAction?.invoke(NavigationAction.BACK) },
-                onForward = { onNavigationAction?.invoke(NavigationAction.FORWARD) },
-                onRefresh = { onNavigationAction?.invoke(NavigationAction.REFRESH) },
-                onBookmark = { onNavigationAction?.invoke(NavigationAction.BOOKMARK) },
-                onShare = { onNavigationAction?.invoke(NavigationAction.SHARE) },
-                onTabCount = { onNavigationAction?.invoke(NavigationAction.TAB_COUNT) },
-                onMenu = { onNavigationAction?.invoke(NavigationAction.MENU) }
-            )
+        // COMPLETE migration: Original theming + working functionality
+        modernContextualToolbar = com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar(container.context).apply {
+            // Restore the listener to make buttons actually work
+            listener = object : com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar.ContextualToolbarListener {
+                override fun onBackClicked() { 
+                    android.util.Log.d("ModernToolbar", "Back clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.BACK) 
+                }
+                override fun onForwardClicked() { 
+                    android.util.Log.d("ModernToolbar", "Forward clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.FORWARD) 
+                }
+                override fun onShareClicked() { 
+                    android.util.Log.d("ModernToolbar", "Share clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.SHARE) 
+                }
+                override fun onSearchClicked() { 
+                    android.util.Log.d("ModernToolbar", "Search clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.SEARCH) 
+                }
+                override fun onNewTabClicked() { 
+                    android.util.Log.d("ModernToolbar", "New tab clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.NEW_TAB) 
+                }
+                override fun onTabCountClicked() { 
+                    android.util.Log.d("ModernToolbar", "Tab count clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.TAB_COUNT) 
+                }
+                override fun onMenuClicked() { 
+                    android.util.Log.d("ModernToolbar", "Menu clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.MENU) 
+                }
+                override fun onBookmarksClicked() { 
+                    android.util.Log.d("ModernToolbar", "Bookmarks clicked - original functionality")
+                    onNavigationAction?.invoke(NavigationAction.BOOKMARKS) 
+                }
+            }
+            android.util.Log.d("ModernToolbarManager", "Complete migration: Original theming + working functionality")
         }
         
         modernToolbarSystem?.addComponent(
@@ -142,15 +170,25 @@ class ModernToolbarManager(
     }
     
     fun updateNavigationState(canGoBack: Boolean, canGoForward: Boolean) {
-        modernContextualToolbar?.updateNavigationState(canGoBack, canGoForward)
+        // The original ContextualBottomToolbar handles its own navigation state
+        android.util.Log.d("ModernToolbarManager", "Navigation state: back=$canGoBack, forward=$canGoForward")
     }
     
     fun updateLoadingState(isLoading: Boolean) {
-        modernContextualToolbar?.updateLoadingState(isLoading)
+        // The original ContextualBottomToolbar handles loading state automatically
+        android.util.Log.d("ModernToolbarManager", "Loading state: $isLoading")
     }
     
-    fun updateBookmarkState(isBookmarked: Boolean) {
-        modernContextualToolbar?.updateBookmarkState(isBookmarked)
+    fun updateModernContext(
+        tab: mozilla.components.browser.state.state.TabSessionState?,
+        canGoBack: Boolean,
+        canGoForward: Boolean,
+        tabCount: Int,
+        isHomepage: Boolean = false
+    ) {
+        // Use the original ContextualBottomToolbar's updateForContext method
+        modernContextualToolbar?.updateForContext(tab, canGoBack, canGoForward, tabCount, isHomepage)
+        android.util.Log.d("ModernToolbarManager", "Updated original toolbar context - tabs: $tabCount, homepage: $isHomepage")
     }
     
     private fun updateScrollBehavior() {
@@ -189,6 +227,7 @@ class ModernToolbarManager(
     }
     
     enum class NavigationAction {
-        BACK, FORWARD, REFRESH, BOOKMARK, SHARE, TAB_COUNT, MENU
+        BACK, FORWARD, REFRESH, BOOKMARK, SHARE, TAB_COUNT, MENU, 
+        SEARCH, NEW_TAB, BOOKMARKS
     }
 }
