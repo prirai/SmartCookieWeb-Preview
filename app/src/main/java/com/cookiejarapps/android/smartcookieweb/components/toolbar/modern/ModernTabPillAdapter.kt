@@ -77,7 +77,6 @@ class ModernTabPillAdapter(
             }
         }
         
-        android.util.Log.d("ModernTabPill", "Updated ${newTabs.size} tabs, selected: $selectedId")
     }
 
     fun moveTab(fromPosition: Int, toPosition: Int) {
@@ -91,7 +90,6 @@ class ModernTabPillAdapter(
             }
         }
         notifyItemMoved(fromPosition, toPosition)
-        android.util.Log.d("ModernTabPill", "Moved tab from $fromPosition to $toPosition")
     }
 
     fun updateCallbacks(onTabClick: (String) -> Unit, onTabClose: (String) -> Unit) {
@@ -109,12 +107,14 @@ class ModernTabPillAdapter(
         private var currentTabId: String? = null
 
         fun bind(tab: SessionState, isSelected: Boolean, pillColor: Int) {
+            android.util.Log.d("TabPillDebug", "🎨 Binding tab: id=${tab.id}, title='${tab.content.title}', url='${tab.content.url}', selected=$isSelected")
             currentTabId = tab.id
             
             // Set title with smart truncation
             val title = tab.content.title.takeIf { !it.isNullOrBlank() } ?: 
                        tab.content.url.takeIf { !it.isNullOrBlank() } ?: "New Tab"
             titleView.text = title
+            android.util.Log.d("TabPillDebug", "📝 Set title to: '$title'")
             
             // Load favicon asynchronously with beautiful fallback
             loadFavicon(tab)
@@ -137,18 +137,46 @@ class ModernTabPillAdapter(
         }
 
         private fun loadFavicon(tab: SessionState) {
+            android.util.Log.d("TabPillDebug", "🖼️ Loading favicon for tab: ${tab.id}, has icon: ${tab.content.icon != null}")
+            
+            // Try to get favicon from tab content first (like tab list does)
+            val existingIcon = tab.content.icon
+            if (existingIcon != null) {
+                android.util.Log.d("TabPillDebug", "✅ Using cached favicon from tab content")
+                faviconView.setImageBitmap(existingIcon)
+                return
+            }
+            
+            // Try to get from favicon cache
+            try {
+                val context = itemView.context
+                val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
+                val cachedFavicon = faviconCache.getFaviconFromMemory(tab.content.url ?: "")
+                
+                if (cachedFavicon != null) {
+                    android.util.Log.d("TabPillDebug", "✅ Using cached favicon from FaviconCache")
+                    faviconView.setImageBitmap(cachedFavicon)
+                    return
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("TabPillDebug", "Could not access FaviconCache", e)
+            }
+            
+            // Fallback to generated favicon
             scope.launch {
                 try {
                     val favicon = withContext(Dispatchers.IO) {
-                        // Try to get favicon from tab or generate beautiful default
-                        tab.content.icon ?: generateBeautifulFavicon(
+                        android.util.Log.d("TabPillDebug", "🎨 Generating fallback favicon for: ${tab.content.url}")
+                        generateBeautifulFavicon(
                             tab.content.url ?: "", 
                             itemView.context
                         )
                     }
                     faviconView.setImageBitmap(favicon)
+                    android.util.Log.d("TabPillDebug", "✅ Generated favicon set successfully")
                 } catch (e: Exception) {
-                    // Fallback to beautiful material icon
+                    android.util.Log.e("TabPillDebug", "❌ Favicon generation failed, using fallback", e)
+                    // Final fallback to material icon
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }
@@ -177,9 +205,15 @@ class ModernTabPillAdapter(
                 
             } else {
                 // Unselected: Elegant subtle pill
+                val backgroundColor = if (isDarkMode()) {
+                    ContextCompat.getColor(itemView.context, android.R.color.background_dark)
+                } else {
+                    ContextCompat.getColor(itemView.context, android.R.color.background_light)
+                }
+                
                 val gradient = GradientDrawable().apply {
                     cornerRadius = 20f
-                    setColor(ContextCompat.getColor(itemView.context, android.R.color.background_light))
+                    setColor(backgroundColor)
                     setStroke(2, pillColor and 0x40FFFFFF)
                 }
                 cardView.background = gradient
@@ -187,7 +221,12 @@ class ModernTabPillAdapter(
                 cardView.scaleX = 1f
                 cardView.scaleY = 1f
                 
-                titleView.setTextColor(ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark))
+                val textColor = if (isDarkMode()) {
+                    ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark_nodisable)
+                } else {
+                    ContextCompat.getColor(itemView.context, android.R.color.primary_text_light_nodisable)
+                }
+                titleView.setTextColor(textColor)
                 selectionIndicator.visibility = View.GONE
                 
                 cardView.clipToOutline = true
@@ -225,6 +264,13 @@ class ModernTabPillAdapter(
         }
 
         fun isTabId(tabId: String): Boolean = currentTabId == tabId
+        
+        private fun isDarkMode(): Boolean {
+            return when (itemView.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) {
+                android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
+                else -> false
+            }
+        }
     }
 
     /**

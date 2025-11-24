@@ -61,12 +61,12 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         // CRITICAL: Fix the layout to be a small horizontal bar
         clipToPadding = false
         overScrollMode = OVER_SCROLL_NEVER
-        setPadding(16, 8, 16, 8)
+        setPadding(4, 2, 4, 2)
         
-        // CRITICAL: Constrain the height to be small
+        // CRITICAL: Proper height for tab pills to be visible
         layoutParams = android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            60 // Fixed height to prevent screen takeover
+            120 // Increased height to ensure pills are visible
         )
         
         elevation = 2f
@@ -75,7 +75,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     private fun setupItemTouchHelper() {
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
-            0
+            ItemTouchHelper.UP
         ) {
             override fun onMove(
                 recyclerView: RecyclerView,
@@ -92,16 +92,22 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                 val movedTab = currentTabs.removeAt(fromPosition)
                 currentTabs.add(toPosition, movedTab)
                 
-                android.util.Log.d("EnhancedTabGroup", "Tab moved from $fromPosition to $toPosition")
                 return true
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                // Not used - we handle tab closing via close button
+                if (direction == ItemTouchHelper.UP) {
+                    val position = viewHolder.adapterPosition
+                    if (position != RecyclerView.NO_POSITION && position < currentTabs.size) {
+                        val tabToClose = currentTabs[position]
+                        android.util.Log.d("TabPillDebug", "🗑️ Swiped up to close tab: ${tabToClose.id}")
+                        onTabClosed?.invoke(tabToClose.id)
+                    }
+                }
             }
 
             override fun isLongPressDragEnabled(): Boolean = true
-            override fun isItemViewSwipeEnabled(): Boolean = false
+            override fun isItemViewSwipeEnabled(): Boolean = true
             
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)
@@ -129,19 +135,30 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     }
 
     fun updateTabs(tabs: List<SessionState>, selectedId: String?) {
+        android.util.Log.d("TabPillDebug", "📋 updateTabs called: ${tabs.size} tabs, selectedId: $selectedId")
         selectedTabId = selectedId
+        
+        // Debug tab information
+        tabs.forEachIndexed { index, tab ->
+            android.util.Log.d("TabPillDebug", "Tab $index: id=${tab.id}, title='${tab.content.title}', url='${tab.content.url}'")
+        }
         
         // Only show if we have multiple tabs
         val shouldShow = tabs.size > 1
+        android.util.Log.d("TabPillDebug", "shouldShow: $shouldShow, currentTabs.size: ${currentTabs.size}")
         
         if (shouldShow && currentTabs != tabs) {
+            android.util.Log.d("TabPillDebug", "✅ Updating adapter with ${tabs.size} tabs")
             currentTabs.clear()
             currentTabs.addAll(tabs)
             
             tabAdapter.updateTabs(tabs, selectedId, groupColors)
             animateVisibility(true)
         } else if (!shouldShow) {
+            android.util.Log.d("TabPillDebug", "❌ Hiding tab pills - only ${tabs.size} tabs")
             animateVisibility(false)
+        } else {
+            android.util.Log.d("TabPillDebug", "⚠️ Not updating - tabs haven't changed or shouldShow is false")
         }
     }
 
