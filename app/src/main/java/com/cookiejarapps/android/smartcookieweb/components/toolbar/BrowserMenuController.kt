@@ -11,6 +11,7 @@ import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.history.HistoryActivity
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import com.cookiejarapps.android.smartcookieweb.settings.activity.SettingsActivity
+import com.cookiejarapps.android.smartcookieweb.ssl.showSslDialog
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import mozilla.components.browser.state.action.EngineAction
@@ -46,11 +47,13 @@ class DefaultBrowserToolbarMenuController(
                     sessionUseCases.goBack.invoke(it.id)
                 }
             }
+
             is ToolbarMenu.Item.Forward -> {
                 currentSession?.let {
                     sessionUseCases.goForward.invoke(it.id)
                 }
             }
+
             is ToolbarMenu.Item.Reload -> {
                 val flags = if (item.bypassCache) {
                     LoadUrlFlags.select(LoadUrlFlags.BYPASS_CACHE)
@@ -62,16 +65,19 @@ class DefaultBrowserToolbarMenuController(
                     sessionUseCases.reload.invoke(it.id, flags = flags)
                 }
             }
+
             is ToolbarMenu.Item.Stop -> currentSession?.let {
                 sessionUseCases.stopLoading.invoke(
                     it.id
                 )
             }
+
             is ToolbarMenu.Item.Settings -> browserAnimator.captureEngineViewAndDrawStatically {
                 val settings = Intent(activity, SettingsActivity::class.java)
                 settings.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 activity.startActivity(settings)
             }
+
             is ToolbarMenu.Item.RequestDesktop -> {
                 currentSession?.let {
                     sessionUseCases.requestDesktopSite.invoke(
@@ -80,14 +86,17 @@ class DefaultBrowserToolbarMenuController(
                     )
                 }
             }
+
             is ToolbarMenu.Item.Print -> {
                 store.state.selectedTab?.let {
                     store.dispatch(EngineAction.PrintContentAction(it.id))
                 }
             }
+
             is ToolbarMenu.Item.PDF -> {
                 activity.components.sessionUseCases.saveToPdf.invoke()
             }
+
             is ToolbarMenu.Item.AddToHomeScreen -> {
                 MainScope().launch {
                     with(activity.components.webAppUseCases) {
@@ -95,6 +104,7 @@ class DefaultBrowserToolbarMenuController(
                     }
                 }
             }
+
             is ToolbarMenu.Item.Share -> {
                 MainScope().launch {
                     activity.components.store.state.selectedTab?.content?.let {
@@ -119,6 +129,7 @@ class DefaultBrowserToolbarMenuController(
             is ToolbarMenu.Item.FindInPage -> {
                 findInPageLauncher()
             }
+
             is ToolbarMenu.Item.OpenInApp -> {
                 val appLinksUseCases = activity.components.appLinksUseCases
                 val getRedirect = appLinksUseCases.appLinkRedirect
@@ -129,26 +140,35 @@ class DefaultBrowserToolbarMenuController(
                     appLinksUseCases.openAppLink.invoke(redirect.appIntent)
                 }
             }
+
             is ToolbarMenu.Item.Bookmarks -> {
-                val bookmarksBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
+                val bookmarksBottomSheet =
+                    com.cookiejarapps.android.smartcookieweb.browser.bookmark.ui.BookmarksBottomSheetFragment.newInstance()
                 bookmarksBottomSheet.show(activity.supportFragmentManager, "BookmarksBottomSheet")
             }
+
             is ToolbarMenu.Item.History -> browserAnimator.captureEngineViewAndDrawStatically {
                 val settings = Intent(activity, HistoryActivity::class.java)
                 settings.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 activity.startActivity(settings)
             }
+
             is ToolbarMenu.Item.NewTab -> {
                 activity.components.tabsUseCases.addTab.invoke(
                     "about:homepage",
                     selectTab = true
                 )
             }
+
             is ToolbarMenu.Item.NewPrivateTab -> {
                 activity.components.tabsUseCases.addTab.invoke(
                     "about:homepage",
                     selectTab = true, private = true
                 )
+            }
+
+            is ToolbarMenu.Item.Security -> {
+                activity.showSslDialog()
             }
         }
     }

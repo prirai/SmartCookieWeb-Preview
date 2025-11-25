@@ -7,9 +7,13 @@ import androidx.lifecycle.LifecycleOwner
 import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.mapNotNull
 import mozilla.components.browser.state.selector.normalTabs
 import mozilla.components.browser.state.selector.privateTabs
+import mozilla.components.browser.state.selector.selectedTab
 import mozilla.components.browser.toolbar.BrowserToolbar
 import mozilla.components.browser.toolbar.display.DisplayToolbar
 import mozilla.components.concept.engine.Engine
@@ -23,6 +27,8 @@ import mozilla.components.lib.publicsuffixlist.PublicSuffixList
 import mozilla.components.support.base.feature.LifecycleAwareFeature
 import mozilla.components.support.ktx.android.content.getColorFromAttr
 import mozilla.components.support.ktx.android.view.hideKeyboard
+import mozilla.components.lib.state.ext.flowScoped
+import mozilla.components.support.ktx.kotlinx.coroutines.flow.ifAnyChanged
 
 @ExperimentalCoroutinesApi
 abstract class ToolbarIntegration(
@@ -52,6 +58,10 @@ abstract class ToolbarIntegration(
     private val menuPresenter =
         MenuPresenter(toolbar, context.components.store, sessionId)
 
+    private var securityBackgroundScope: CoroutineScope? = null
+    protected val toolbar: BrowserToolbar = toolbar
+    protected val context: Context = context
+
     init {
         // Always hide menu button from address bar (it's shown in the contextual toolbar instead)
         toolbar.display.menuBuilder = null
@@ -62,12 +72,47 @@ abstract class ToolbarIntegration(
         menuPresenter.start()
         toolbarPresenter.start()
         toolbarController.start()
+        startSecurityBackgroundObserver()
     }
 
     override fun stop() {
         menuPresenter.stop()
         toolbarPresenter.stop()
         toolbarController.stop()
+        securityBackgroundScope?.cancel()
+    }
+
+    private fun startSecurityBackgroundObserver() {
+        securityBackgroundScope = store.flowScoped { flow ->
+            flow.mapNotNull { state -> state.selectedTab }
+                .ifAnyChanged { tab ->
+                    arrayOf(tab.content.securityInfo)
+                }
+                .collect { tab ->
+                    updateSecurityBackground(tab.content.securityInfo?.secure ?: false)
+                }
+        }
+    }
+
+    private fun updateSecurityBackground(isSecure: Boolean) {
+        val background = if (isSecure) {
+            AppCompatResources.getDrawable(context, R.drawable.toolbar_background)
+        } else {
+            AppCompatResources.getDrawable(context, R.drawable.toolbar_background_insecure)
+        }
+        toolbar.display.setUrlBackground(background)
+
+        // Update text color for visibility on dark red background
+        val textColor = if (isSecure) {
+            context.getColorFromAttr(android.R.attr.textColorPrimary)
+        } else {
+            0xFFFFFFFF.toInt() // White text for dark red background
+        }
+
+        toolbar.display.colors = toolbar.display.colors.copy(
+            text = textColor,
+            hint = if (isSecure) 0x1E15141a else 0x80FFFFFF.toInt()
+        )
     }
 
     fun invalidateMenu() {
@@ -102,7 +147,6 @@ class DefaultToolbarIntegration(
 
         toolbar.display.indicators =
             listOf(
-                DisplayToolbar.Indicators.SECURITY,
                 DisplayToolbar.Indicators.EMPTY,
                 DisplayToolbar.Indicators.HIGHLIGHT
             )
@@ -125,13 +169,19 @@ class DefaultToolbarIntegration(
             icon = context.getColorFromAttr(android.R.attr.textColorPrimary)
         )
 
-        toolbar.display.setUrlBackground(AppCompatResources.getDrawable(context, R.drawable.toolbar_background))
-
+        // Initial background - will be updated by security observer
         if (isPrivate) {
             toolbar.display.setUrlBackground(
                 AppCompatResources.getDrawable(
                     context,
                     R.drawable.toolbar_background_private
+                )
+            )
+        } else {
+            toolbar.display.setUrlBackground(
+                AppCompatResources.getDrawable(
+                    context,
+                    R.drawable.toolbar_background
                 )
             )
         }

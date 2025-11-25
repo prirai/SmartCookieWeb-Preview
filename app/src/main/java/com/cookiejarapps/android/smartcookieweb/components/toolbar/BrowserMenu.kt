@@ -127,6 +127,7 @@ class BrowserMenu(
     private val menuItems by lazy {
         val menuItems = listOfNotNull(
             settings,
+            securityItem,
             findInPage,
             BrowserMenuDivider(),
             historyItem,
@@ -231,6 +232,14 @@ class BrowserMenu(
         primaryTextColor()
     ) {
         onItemTapped.invoke(ToolbarMenu.Item.Bookmarks)
+    }
+
+    val securityItem = BrowserMenuImageText(
+        label = "Security",
+        imageResource = R.drawable.ic_baseline_lock,
+        iconTintColorResource = primaryTextColor()
+    ) {
+        onItemTapped.invoke(ToolbarMenu.Item.Security)
     }
 
     @ColorRes

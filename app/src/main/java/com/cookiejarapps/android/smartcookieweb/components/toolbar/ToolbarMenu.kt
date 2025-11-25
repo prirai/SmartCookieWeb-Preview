@@ -21,6 +21,7 @@ interface ToolbarMenu {
         data object History : Item()
         data object Print : Item()
         data object PDF : Item()
+        data object Security : Item()
     }
 
     val menuBuilder: BrowserMenuBuilder

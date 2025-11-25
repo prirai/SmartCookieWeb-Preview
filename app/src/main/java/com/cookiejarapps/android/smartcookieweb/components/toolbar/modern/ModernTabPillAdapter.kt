@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -19,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 /**
  * Enhanced adapter for Tab Islands with beautiful tab pills, island headers,
@@ -619,7 +621,11 @@ class ModernTabPillAdapter(
                 faviconView.alpha = 0.8f
             }
 
-            // Click handler
+            // Make view clickable
+            tabContent.isClickable = true
+            tabContent.isFocusable = true
+
+            // Regular click handler - simpler approach
             tabContent.setOnClickListener {
                 onTabClick(tab.id)
                 itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
@@ -757,6 +763,8 @@ class ModernTabPillAdapter(
                 else -> false
             }
         }
+
+
     }
 
     /**

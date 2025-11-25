@@ -4,12 +4,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/gestureLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/browserWindow"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+    >
 
         <androidx.coordinatorlayout.widget.CoordinatorLayout
             android:id="@+id/browserLayout"
@@ -17,19 +19,22 @@
             android:layout_height="0dp"
             app:layout_constraintBottom_toTopOf="@+id/loginSelectBar"
             app:layout_constraintTop_toTopOf="parent"
-            tools:context="browser.BrowserFragment">
+            tools:context="browser.BrowserFragment"
+        >
 
             <mozilla.components.ui.widgets.VerticalSwipeRefreshLayout
                 android:id="@+id/swipeRefresh"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+            >
 
                 <mozilla.components.concept.engine.EngineView
                     tools:ignore="Instantiatable"
                     android:id="@+id/engineView"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                />
             </mozilla.components.ui.widgets.VerticalSwipeRefreshLayout>
 
             <ViewStub
@@ -38,7 +43,8 @@
                 android:layout_height="56dp"
                 android:layout_gravity="bottom"
                 android:inflatedId="@+id/findInPageView"
-                android:layout="@layout/stub_find_in_page" />
+                android:layout="@layout/stub_find_in_page"
+            />
 
             <mozilla.components.feature.readerview.view.ReaderViewControlsBar
                 android:id="@+id/readerViewControlsBar"
@@ -47,7 +53,8 @@
                 android:layout_gravity="bottom"
                 android:background="?attr/colorSurface"
                 android:elevation="24dp"
-                android:visibility="gone" />
+                android:visibility="gone"
+            />
 
             <!-- Tab Groups Bar positioned above browser toolbar (HIDDEN - now integrated into toolbar) -->
             <com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupBar
@@ -56,7 +63,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginBottom="56dp"
-                android:visibility="gone" />
+                android:visibility="gone"
+            />
 
             <!-- Bottom Toolbar (HIDDEN - now integrated into toolbar) -->
             <com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
@@ -64,7 +72,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
-                android:visibility="gone" />
+                android:visibility="gone"
+            />
 
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
@@ -74,7 +83,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/browserLayout" />
+            app:layout_constraintTop_toBottomOf="@id/browserLayout"
+        />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <mozilla.components.feature.readerview.view.ReaderViewControlsBar
@@ -85,18 +95,19 @@
         android:background="#FFFFFFFF"
         android:elevation="10dp"
         android:paddingBottom="55dp"
-        android:visibility="gone" />
+        android:visibility="gone"
+    />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/readerViewAppearanceButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
+        android:layout_gravity="end|center_vertical"
         android:layout_marginLeft="16dp"
         android:layout_marginRight="16dp"
-        android:layout_marginBottom="72dp"
         android:src="@drawable/mozac_ic_font"
-        android:visibility="gone" />
+        android:visibility="gone"
+    />
 
     <com.cookiejarapps.android.smartcookieweb.browser.FakeTab
         android:id="@+id/tabPreview"
@@ -104,5 +115,6 @@
         android:layout_height="match_parent"
         android:clickable="false"
         android:focusable="false"
-        android:visibility="gone" />
+        android:visibility="gone"
+    />
 </com.cookiejarapps.android.smartcookieweb.browser.SwipeGestureLayout>

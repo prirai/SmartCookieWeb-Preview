@@ -49,7 +49,7 @@ class ReloadStopButtonIntegration(
     }
 
     init {
-        toolbar.addBrowserAction(reloadStopButton)
+        toolbar.addPageAction(reloadStopButton)
     }
 
     override fun start() {
