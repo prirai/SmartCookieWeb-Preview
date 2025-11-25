@@ -1,16 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-<merge xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<merge
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+>
 
     <mozilla.components.browser.tabstray.thumbnail.TabThumbnailView
         android:id="@+id/previewThumbnail"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorSurface" />
+        android:background="?attr/colorSurface"
+    />
 
+    <!-- Modern simplified toolbar matching current design -->
     <LinearLayout
         android:id="@+id/fake_toolbar"
         android:layout_width="match_parent"
@@ -19,30 +23,20 @@
         android:background="?attr/colorSurface"
         android:elevation="5dp"
         android:foregroundGravity="bottom"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:gravity="center_vertical"
+    >
 
-        <mozilla.components.ui.tabcounter.TabCounterView
-            android:id="@+id/tab_button"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center" />
-
+        <!-- Modern rounded address bar background (matches current toolbar) -->
         <View
             android:id="@+id/toolbar_wrapper"
             android:layout_width="0dp"
             android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:layout_marginEnd="0dp"
             android:layout_weight="1"
-            android:background="@drawable/toolbar_background" />
+            android:background="@drawable/toolbar_background"
+        />
 
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/menuButton"
-            android:layout_width="36dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center"
-            android:scaleType="center"
-            app:srcCompat="@drawable/mozac_ic_ellipsis_vertical_24"
-            app:tint="?android:attr/textColorPrimary" />
     </LinearLayout>
 </merge>

@@ -6,7 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
@@ -264,12 +263,8 @@ class TabsTrayFragment : Fragment() {
     }
 
     private fun closeTabsTray() {
-        val drawerLayout = activity?.findViewById<DrawerLayout>(R.id.drawer_layout)
-        val tabsDrawer = requireActivity().findViewById<FrameLayout>(R.id.right_drawer) // Always use right drawer
-
-        if (tabsDrawer != null) {
-            drawerLayout?.closeDrawer(tabsDrawer)
-        }
+        // Drawer layout removed - tabs are now shown in bottom sheet
+        // This method is kept for compatibility but does nothing
     }
 
     private fun createTabsTray(): TabsTray {
@@ -362,10 +357,6 @@ class TabsTrayFragment : Fragment() {
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(browsingModeManager.mode.ordinal))
     }
 }
-
-enum class BrowserTabType { NORMAL, PRIVATE }
-
-data class Configuration(val browserTabType: BrowserTabType)
 
 fun TabSessionState.filterFromConfig(configuration: Configuration): Boolean {
     val isPrivate = configuration.browserTabType == BrowserTabType.PRIVATE

@@ -4,35 +4,45 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
-import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.cookiejarapps.android.smartcookieweb.BrowserActivity
 import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.browser.BrowsingMode
 import com.cookiejarapps.android.smartcookieweb.browser.BrowsingModeManager
+import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupManager
+import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupWithTabs
 import com.cookiejarapps.android.smartcookieweb.databinding.FragmentTabsBottomSheetBinding
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
-import com.cookiejarapps.android.smartcookieweb.settings.HomepageChoice
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.tabs.TabLayout
-import mozilla.components.browser.state.state.BrowserState
+import kotlinx.coroutines.launch
 import mozilla.components.browser.state.state.TabSessionState
 import mozilla.components.browser.thumbnails.loader.ThumbnailLoader
 
 /**
- * Bottom sheet dialog for managing tabs - clean, mobile-friendly interface
+ * Modern bottom sheet dialog for managing tabs with tab groups support
+ * Features: collapsing/expanding groups, drag-and-drop tabs between groups
  */
 class TabsBottomSheetFragment : BottomSheetDialogFragment() {
-    
+
     private var _binding: FragmentTabsBottomSheetBinding? = null
     private val binding get() = _binding!!
-    
+
     private lateinit var browsingModeManager: BrowsingModeManager
     private lateinit var configuration: Configuration
-    private lateinit var tabsAdapter: TabListAdapter
+    private lateinit var tabsAdapter: TabsWithGroupsAdapter
+    private lateinit var tabGroupManager: TabGroupManager
     private var isInitializing = true
+
+    companion object {
+        const val TAG = "TabsBottomSheetFragment"
+        fun newInstance() = TabsBottomSheetFragment()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,166 +55,162 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        tabGroupManager = requireContext().components.tabGroupManager
         setupUI()
         setupTabsAdapter()
-        // Only update display after adapter is set up
         updateTabsDisplay()
     }
-    
+
     override fun onStart() {
         super.onStart()
-        
-        // Configure bottom sheet to prevent premature dismissal
+
+        // Configure bottom sheet behavior
         val bottomSheetDialog = dialog as com.google.android.material.bottomsheet.BottomSheetDialog
         val behavior = bottomSheetDialog.behavior
-        
-        // Set fixed height to 80% of screen height
+
         val screenHeight = resources.displayMetrics.heightPixels
-        val desiredHeight = (screenHeight * 0.8).toInt()
-        
+        val desiredHeight = (screenHeight * 0.85).toInt()
+
         behavior.isFitToContents = false
         behavior.peekHeight = desiredHeight
         behavior.expandedOffset = screenHeight - desiredHeight
         behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
         behavior.skipCollapsed = true
         behavior.isHideable = true
-        behavior.isDraggable = false  // Completely disable dragging to prevent accidental dismissal
-        
-        // Set the bottom sheet to exact height we want
+        behavior.isDraggable = false
+
         bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
             val layoutParams = bottomSheet.layoutParams
             layoutParams.height = desiredHeight
             bottomSheet.layoutParams = layoutParams
         }
-        
-        // Prevent dismissal on outside touch while interacting
+
         bottomSheetDialog.setCancelable(true)
         bottomSheetDialog.setCanceledOnTouchOutside(true)
     }
-    
+
     private fun setupUI() {
         browsingModeManager = (activity as BrowserActivity).browsingModeManager
         configuration = Configuration(
-            if (browsingModeManager.mode == BrowsingMode.Normal) 
-                BrowserTabType.NORMAL 
-            else 
+            if (browsingModeManager.mode == BrowsingMode.Normal)
+                BrowserTabType.NORMAL
+            else
                 BrowserTabType.PRIVATE
         )
-        
-        // Header elements removed - cleaner UI
-        
+
         // Setup new tab button
         binding.newTabButton.setOnClickListener {
             addNewTab()
         }
-        
-        // Setup tab mode toggle (Normal/Private)
+
+        // Setup tab mode toggle
         binding.tabModeToggle.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
-                // Only respond to user interactions, not programmatic changes during initialization
                 if (isInitializing) return
-                
+
                 when (tab.position) {
-                    0 -> {
-                        // Switch to normal browsing mode with animation
-                        animateTabModeTransition(BrowserTabType.NORMAL)
-                    }
-                    1 -> {
-                        // Switch to private browsing mode with animation
-                        animateTabModeTransition(BrowserTabType.PRIVATE)
-                    }
+                    0 -> animateTabModeTransition(BrowserTabType.NORMAL)
+                    1 -> animateTabModeTransition(BrowserTabType.PRIVATE)
                 }
             }
+
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
-        
-        // Select current mode after everything is set up
-        // This will be done in updateTabsDisplay() after adapter is ready
     }
-    
+
     private fun setupTabsAdapter() {
         val thumbnailLoader = ThumbnailLoader(requireContext().components.thumbnailStorage)
-        
-        // Create adapter with TabsTray.Delegate
-        tabsAdapter = TabListAdapter(
+
+        tabsAdapter = TabsWithGroupsAdapter(
+            context = requireContext(),
             thumbnailLoader = thumbnailLoader,
-            delegate = object : mozilla.components.browser.tabstray.TabsTray.Delegate {
-                override fun onTabSelected(tab: TabSessionState, source: String?) {
-                    selectTab(tab)
-                }
-                
-                override fun onTabClosed(tab: TabSessionState, source: String?) {
-                    closeTab(tab)
-                }
-            }
+            onTabClick = { tabId -> selectTab(tabId) },
+            onTabClose = { tabId -> closeTab(tabId) },
+            onGroupExpand = { groupId -> toggleGroupExpanded(groupId) },
+            onTabMovedToGroup = { tabId, targetGroupId -> moveTabToGroup(tabId, targetGroupId) },
+            onTabRemovedFromGroup = { tabId -> removeTabFromGroup(tabId) }
         )
-        
+
         binding.tabsRecyclerView.adapter = tabsAdapter
-        
-        // Setup layout manager
-        val layoutManager = if (UserPreferences(requireContext()).showTabsInGrid) {
-            GridLayoutManager(requireContext(), 2)
-        } else {
-            LinearLayoutManager(requireContext())
+        binding.tabsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.tabsRecyclerView.isNestedScrollingEnabled = true
+        binding.tabsRecyclerView.setHasFixedSize(false)
+
+        // Setup drag and drop
+        val itemTouchHelper = ItemTouchHelper(TabDragCallback(tabsAdapter))
+        itemTouchHelper.attachToRecyclerView(binding.tabsRecyclerView)
+
+        // Observe tab groups changes
+        viewLifecycleOwner.lifecycleScope.launch {
+            tabGroupManager.allGroups.collect {
+                updateTabsDisplay()
+            }
         }
-        
-        binding.tabsRecyclerView.layoutManager = layoutManager
-        
-        // Disable nested scrolling to prevent conflicts with bottom sheet
-        binding.tabsRecyclerView.isNestedScrollingEnabled = false
-        binding.tabsRecyclerView.setHasFixedSize(true) // Optimize performance
     }
-    
+
     private fun updateTabsDisplay() {
-        // Safety check to prevent crash
-        if (!::tabsAdapter.isInitialized) {
-            return
-        }
-        
+        if (!::tabsAdapter.isInitialized) return
+
         val store = requireContext().components.store.state
         val tabs = if (configuration.browserTabType == BrowserTabType.NORMAL) {
             store.tabs.filter { !it.content.private }
         } else {
             store.tabs.filter { it.content.private }
         }
-        
-        // Update adapter with proper method
-        tabsAdapter.updateTabs(tabs, null, store.selectedTabId)
-        
-        // Scroll to selected tab to center it in view
-        scrollToSelectedTab(tabs, store.selectedTabId)
-        
-        // Show/hide empty state
-        if (tabs.isEmpty()) {
-            binding.tabsRecyclerView.visibility = View.GONE
-            binding.emptyStateLayout.visibility = View.VISIBLE
-        } else {
-            binding.tabsRecyclerView.visibility = View.VISIBLE
-            binding.emptyStateLayout.visibility = View.GONE
+
+        // Get all groups
+        viewLifecycleOwner.lifecycleScope.launch {
+            val groups = tabGroupManager.getAllGroups()
+            val groupsWithTabs = mutableListOf<TabGroupWithTabs>()
+
+            for (group in groups) {
+                val tabIds = tabGroupManager.getTabIdsInGroup(group.id)
+                // Only include groups that have tabs in current mode
+                val groupTabIds = tabIds.filter { tabId ->
+                    tabs.any { it.id == tabId }
+                }
+                if (groupTabIds.isNotEmpty()) {
+                    groupsWithTabs.add(TabGroupWithTabs(group, groupTabIds))
+                }
+            }
+
+            // Get ungrouped tabs
+            val groupedTabIds = groupsWithTabs.flatMap { it.tabIds }.toSet()
+            val ungroupedTabs = tabs.filter { it.id !in groupedTabIds }
+
+            tabsAdapter.updateData(
+                groups = groupsWithTabs,
+                ungroupedTabs = ungroupedTabs,
+                selectedTabId = store.selectedTabId
+            )
+
+            // Show/hide empty state
+            if (tabs.isEmpty()) {
+                binding.tabsRecyclerView.visibility = View.GONE
+                binding.emptyStateLayout.visibility = View.VISIBLE
+            } else {
+                binding.tabsRecyclerView.visibility = View.VISIBLE
+                binding.emptyStateLayout.visibility = View.GONE
+            }
         }
-        
-        // Set the correct tab selection (only once after adapter is ready)
+
+        // Set correct tab mode selection
         if (isInitializing) {
             binding.tabModeToggle.selectTab(
                 binding.tabModeToggle.getTabAt(browsingModeManager.mode.ordinal)
             )
-            // Mark initialization as complete after first setup
             isInitializing = false
         }
     }
-    
+
     private fun animateTabModeTransition(targetMode: BrowserTabType) {
-        // Fade out current content
         binding.tabsRecyclerView.animate()
             .alpha(0f)
             .setDuration(150)
             .withEndAction {
-                // Switch mode in the middle of animation
                 switchToTabMode(targetMode)
-                
-                // Fade in new content
                 binding.tabsRecyclerView.animate()
                     .alpha(1f)
                     .setDuration(150)
@@ -212,7 +218,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             }
             .start()
     }
-    
+
     private fun switchToTabMode(targetMode: BrowserTabType) {
         val store = requireContext().components.store.state
         val targetTabs = if (targetMode == BrowserTabType.NORMAL) {
@@ -220,225 +226,114 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         } else {
             store.tabs.filter { it.content.private }
         }
-        
-        // Update browsing mode and configuration
+
         browsingModeManager.mode = if (targetMode == BrowserTabType.NORMAL) {
             BrowsingMode.Normal
         } else {
             BrowsingMode.Private
         }
         configuration = Configuration(targetMode)
-        
+
         if (targetTabs.isEmpty()) {
-            // No tabs in target mode - create a new one
             addNewTab()
-            return // addNewTab() will dismiss the bottom sheet
+            return
         } else {
-            // Find the most recently selected tab in the target mode, or fall back to last tab
             val currentSelectedTabId = store.selectedTabId
             val currentSelectedTab = store.tabs.find { it.id == currentSelectedTabId }
             val targetTab = if (currentSelectedTab != null && targetTabs.contains(currentSelectedTab)) {
-                // If currently selected tab is in target mode, keep it selected
                 currentSelectedTab
             } else {
-                // Otherwise, find the most recent tab in target mode or use the last one
                 targetTabs.maxByOrNull { it.lastAccess } ?: targetTabs.last()
             }
-            
+
             requireContext().components.tabsUseCases.selectTab(targetTab.id)
-            
-            // Update the display
             updateTabsDisplay()
         }
     }
-    
+
     private fun addNewTab() {
         val isPrivate = configuration.browserTabType == BrowserTabType.PRIVATE
-        
-        // Always use about:homepage as the default
         val homepage = "about:homepage"
-        
+
         requireContext().components.tabsUseCases.addTab.invoke(
             homepage,
             selectTab = true,
             private = isPrivate
         )
-        
+
         dismiss()
     }
-    
-    private fun selectTab(tab: TabSessionState) {
-        // Select the tab first
+
+    private fun selectTab(tabId: String) {
+        val store = requireContext().components.store.state
+        val tab = store.tabs.find { it.id == tabId } ?: return
+
         requireContext().components.tabsUseCases.selectTab(tab.id)
-        
-        // Update browsing mode if needed
+
         if (tab.content.private && browsingModeManager.mode == BrowsingMode.Normal) {
             browsingModeManager.mode = BrowsingMode.Private
         } else if (!tab.content.private && browsingModeManager.mode == BrowsingMode.Private) {
             browsingModeManager.mode = BrowsingMode.Normal
         }
-        
-        // Navigate properly based on tab content (same logic as original TabsTrayFragment)
+
         if (tab.content.url == "about:homepage") {
-            // Homepage will not correctly set private / normal mode, so reload
             requireContext().components.sessionUseCases.reload(tab.id)
         } else {
-            // For loaded content, navigate to browser fragment
             try {
-                val navController = requireActivity().findNavController(com.cookiejarapps.android.smartcookieweb.R.id.container)
-                if (navController.currentDestination?.id == com.cookiejarapps.android.smartcookieweb.R.id.browserFragment) {
-                    // Already on browser fragment, just dismiss
-                } else if (!navController.popBackStack(com.cookiejarapps.android.smartcookieweb.R.id.browserFragment, false)) {
-                    // Navigate to browser fragment
-                    navController.navigate(com.cookiejarapps.android.smartcookieweb.R.id.browserFragment)
+                val navController = requireActivity().findNavController(R.id.container)
+                if (navController.currentDestination?.id != R.id.browserFragment) {
+                    if (!navController.popBackStack(R.id.browserFragment, false)) {
+                        navController.navigate(R.id.browserFragment)
+                    }
                 }
             } catch (e: Exception) {
-                // Fallback: just reload the tab
                 requireContext().components.sessionUseCases.reload(tab.id)
             }
         }
-        
+
         dismiss()
     }
-    
-    private fun scrollToSelectedTab(tabs: List<TabSessionState>, selectedTabId: String?) {
-        if (selectedTabId == null || tabs.isEmpty()) return
-        
-        val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }
-        if (selectedIndex == -1) return
-        
-        // Post with delay to ensure RecyclerView is fully laid out before scrolling
-        binding.tabsRecyclerView.postDelayed({
-            val layoutManager = binding.tabsRecyclerView.layoutManager
-            val recyclerView = binding.tabsRecyclerView
-            
-            // Safety check - ensure we have children
-            if (recyclerView.childCount == 0) {
-                // Retry once more after items are laid out
-                recyclerView.postDelayed({
-                    scrollToSelectedTabInternal(tabs, selectedTabId, selectedIndex)
-                }, 50)
-                return@postDelayed
-            }
-            
-            scrollToSelectedTabInternal(tabs, selectedTabId, selectedIndex)
-        }, 100) // Small delay to ensure layout is complete
-    }
-    
-    private fun scrollToSelectedTabInternal(tabs: List<TabSessionState>, selectedTabId: String?, selectedIndex: Int) {
-        val layoutManager = binding.tabsRecyclerView.layoutManager
-        val recyclerView = binding.tabsRecyclerView
-        
-        when (layoutManager) {
-            is LinearLayoutManager -> {
-                // Get RecyclerView height accounting for padding
-                val recyclerViewHeight = recyclerView.height - recyclerView.paddingTop - recyclerView.paddingBottom
-                val itemHeight = recyclerView.getChildAt(0)?.height ?: 120
-                
-                // Calculate how many items can be fully visible at once
-                val visibleItemCount = (recyclerViewHeight / itemHeight).coerceAtLeast(1)
-                
-                // Always try to center the selected item, but ensure it's fully visible
-                val topOffset = (recyclerViewHeight / 2) - (itemHeight / 2)
-                
-                when {
-                    selectedIndex <= 2 -> {
-                        // Near beginning - show from start with some top padding
-                        layoutManager.scrollToPositionWithOffset(0, recyclerView.paddingTop / 2)
-                    }
-                    selectedIndex >= tabs.size - 3 -> {
-                        // Near end - ensure last items are fully visible with bottom padding
-                        val lastPosition = tabs.size - 1
-                        val bottomOffset = -(recyclerViewHeight - (itemHeight * visibleItemCount.coerceAtMost(tabs.size)))
-                        layoutManager.scrollToPositionWithOffset(lastPosition, bottomOffset.coerceAtMost(0))
-                    }
-                    else -> {
-                        // Middle - center the selected tab with proper offset
-                        layoutManager.scrollToPositionWithOffset(selectedIndex, topOffset)
-                    }
-                }
-            }
-            is GridLayoutManager -> {
-                // For grid layout, calculate row-based centering with padding
-                val spanCount = layoutManager.spanCount
-                val selectedRow = selectedIndex / spanCount
-                val totalRows = (tabs.size + spanCount - 1) / spanCount
-                
-                val itemHeight = recyclerView.getChildAt(0)?.height ?: 140
-                val recyclerViewHeight = recyclerView.height - recyclerView.paddingTop - recyclerView.paddingBottom
-                val visibleRowCount = (recyclerViewHeight / itemHeight).coerceAtLeast(1)
-                
-                when {
-                    selectedRow <= 1 -> {
-                        // Near beginning
-                        layoutManager.scrollToPositionWithOffset(0, recyclerView.paddingTop / 2)
-                    }
-                    selectedRow >= totalRows - 2 -> {
-                        // Near end
-                        val lastRowPosition = ((totalRows - 1) * spanCount).coerceAtMost(tabs.size - 1)
-                        val bottomOffset = -(recyclerViewHeight - (itemHeight * visibleRowCount.coerceAtMost(totalRows)))
-                        layoutManager.scrollToPositionWithOffset(lastRowPosition, bottomOffset.coerceAtMost(0))
-                    }
-                    else -> {
-                        // Center the selected row
-                        val centerOffset = (recyclerViewHeight / 2) - (itemHeight / 2)
-                        val targetPosition = selectedRow * spanCount
-                        layoutManager.scrollToPositionWithOffset(targetPosition, centerOffset)
-                    }
-                }
-            }
+
+    private fun closeTab(tabId: String) {
+        val store = requireContext().components.store.state
+        val tab = store.tabs.find { it.id == tabId } ?: return
+
+        requireContext().components.tabsUseCases.removeTab(tab.id)
+
+        // Remove from group if it was in one
+        viewLifecycleOwner.lifecycleScope.launch {
+            tabGroupManager.removeTabFromGroups(tabId)
+            updateTabsDisplay()
         }
     }
 
-    private fun closeTab(tab: TabSessionState) {
-        val store = requireContext().components.store.state
-        val tabs = if (configuration.browserTabType == BrowserTabType.NORMAL) {
-            store.tabs.filter { !it.content.private }
-        } else {
-            store.tabs.filter { it.content.private }
-        }
-        
-        // Handle tab selection after closing
-        if (tabs.size > 1 && store.selectedTabId == tab.id) {
-            val tabIndex = tabs.indexOfFirst { it.id == tab.id }
-            val nextTab = if (tabIndex == 0) tabs[1] else tabs[tabIndex - 1]
-            requireContext().components.tabsUseCases.selectTab(nextTab.id)
-        }
-        
-        // Remove the tab
-        requireContext().components.tabsUseCases.removeTab(tab.id)
-        
-        // Force immediate refresh of the tab list
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
+    private fun toggleGroupExpanded(groupId: String) {
+        tabsAdapter.toggleGroupExpanded(groupId)
+    }
+
+    private fun moveTabToGroup(tabId: String, targetGroupId: String?) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // First remove from current group
+            tabGroupManager.removeTabFromGroups(tabId)
+
+            // Then add to new group if specified
+            if (targetGroupId != null) {
+                tabGroupManager.addTabToGroup(tabId, targetGroupId)
+            }
+
             updateTabsDisplay()
         }
-        
-        // Handle app exit if no tabs left
-        if (tabs.size == 1) {
-            if (configuration.browserTabType == BrowserTabType.NORMAL) {
-                requireActivity().finishAndRemoveTask()
-            } else {
-                // Switch to normal mode
-                browsingModeManager.mode = BrowsingMode.Normal
-                val normalTabs = store.tabs.filter { !it.content.private }
-                if (normalTabs.isNotEmpty()) {
-                    requireContext().components.tabsUseCases.selectTab(normalTabs.last().id)
-                }
-            }
-            dismiss()
+    }
+
+    private fun removeTabFromGroup(tabId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            tabGroupManager.removeTabFromGroups(tabId)
+            updateTabsDisplay()
         }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-    
-    companion object {
-        const val TAG = "TabsBottomSheetFragment"
-        
-        fun newInstance(): TabsBottomSheetFragment {
-            return TabsBottomSheetFragment()
-        }
     }
 }

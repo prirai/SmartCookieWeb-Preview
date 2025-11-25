@@ -16,8 +16,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.drawerlayout.widget.DrawerLayout.SimpleDrawerListener
 import androidx.fragment.app.FragmentManager
 import androidx.navigation.NavDirections
 import androidx.navigation.fragment.NavHostFragment
@@ -76,8 +74,8 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
 
     private val externalSourceIntentProcessors by lazy {
         listOf(
-                OpenBrowserIntentProcessor(this, ::getIntentSessionId),
-                OpenSpecificTabIntentProcessor(this)
+            OpenBrowserIntentProcessor(this, ::getIntentSessionId),
+            OpenSpecificTabIntentProcessor(this)
         )
     }
 
@@ -99,7 +97,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     override fun onCreate(savedInstanceState: Bundle?) {
         // Switch from splash theme to regular theme immediately
         setTheme(R.style.AppThemeNotActionBar)
-        
+
         super.onCreate(savedInstanceState)
 
         components.publicSuffixList.prefetch()
@@ -114,7 +112,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
 
         setContentView(view)
 
-        if(UserPreferences(this).firstLaunch){
+        if (UserPreferences(this).firstLaunch) {
             UserPreferences(this).firstLaunch = false
         }
 
@@ -122,11 +120,11 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
 
         //TODO: Move to settings page so app restart no longer required
         //TODO: Differentiate between using search engine / adding to list - the code below removes all from list as I don't support adding to list, only setting as default
-        for(i in components.store.state.search.customSearchEngines){
+        for (i in components.store.state.search.customSearchEngines) {
             components.searchUseCases.removeSearchEngine(i)
         }
 
-        if(UserPreferences(this).customSearchEngine){
+        if (UserPreferences(this).customSearchEngine) {
             // SECURITY: Use lifecycle-aware coroutine scope
             lifecycleScope.launch {
                 val customSearch =
@@ -146,14 +144,12 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
                     )
                 }
             }
-        }
-        else{
-            if(SearchEngineList().getEngines()[UserPreferences(this).searchEngineChoice].type == SearchEngine.Type.BUNDLED){
+        } else {
+            if (SearchEngineList().getEngines()[UserPreferences(this).searchEngineChoice].type == SearchEngine.Type.BUNDLED) {
                 components.searchUseCases.selectSearchEngine(
                     SearchEngineList().getEngines()[UserPreferences(this).searchEngineChoice]
                 )
-            }
-            else{
+            } else {
                 components.searchUseCases.addSearchEngine(
                     SearchEngineList().getEngines()[UserPreferences(
                         this
@@ -166,7 +162,8 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
         }
 
         if (isActivityColdStarted(intent, savedInstanceState) &&
-            !externalSourceIntentProcessors.any { it.process(intent, navHost.navController, this.intent) }) {
+            !externalSourceIntentProcessors.any { it.process(intent, navHost.navController, this.intent) }
+        ) {
             navigateToBrowserOnColdStart()
         }
 
@@ -184,7 +181,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             } else {
                 bars.top // Normal status bar padding for top toolbar
             }
-            
+
             // Dynamic status bar based on toolbar position
             if (isBottomToolbar) {
                 enableDynamicStatusBar()
@@ -194,7 +191,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
                 window.statusBarColor = getColor(R.color.statusbar_background)
                 androidx.core.view.WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = true
             }
-            
+
             v.updatePadding(
                 left = bars.left,
                 top = topPadding,
@@ -206,31 +203,6 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             WindowInsetsCompat.CONSUMED
             WindowInsetsCompat.CONSUMED
         }
-
-        val rightDrawer = TabsTrayFragment()
-        val leftDrawer = TabsTrayFragment()
-
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.right_drawer, rightDrawer)
-            commit()
-        }
-
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.left_drawer, leftDrawer)
-            commit()
-        }
-
-        binding.drawerLayout.addDrawerListener(object : SimpleDrawerListener() {
-            override fun onDrawerStateChanged(newState: Int) {
-                if (newState == DrawerLayout.STATE_SETTLING && !binding.drawerLayout.isDrawerOpen(
-                        GravityCompat.START
-                    )
-                ) {
-                     val tabDrawer = rightDrawer // Always use right drawer for tabs
-                    (tabDrawer as TabsTrayFragment).notifyBrowsingModeStateChanged()
-                }
-            }
-        })
 
         components.appRequestInterceptor.setNavController(navHost.navController)
 
@@ -281,7 +253,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     protected open fun createBrowsingModeManager(initialMode: BrowsingMode): BrowsingModeManager {
         return DefaultBrowsingModeManager(initialMode, UserPreferences(this)) { newMode ->
             if (newMode != currentTheme) {
-                if(!isFinishing) recreate()
+                if (!isFinishing) recreate()
             }
         }
     }
@@ -299,10 +271,11 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
         when (name) {
             EngineView::class.java.name -> components.engine.createView(context, attrs).apply {
                 selectionActionDelegate = DefaultSelectionActionDelegate(
-                        store = components.store,
-                        context = context
+                    store = components.store,
+                    context = context
                 )
             }.asView()
+
             else -> super.onCreateView(parent, name, context, attrs)
         }
 
@@ -316,7 +289,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
 
             isToolbarInflated = true
         }
-        
+
         // Hide navigation toolbar when using bottom toolbar to prevent any visual artifacts
         if (UserPreferences(this).shouldUseBottomToolbar) {
             navigationToolbar.visibility = android.view.View.GONE
@@ -331,7 +304,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
                 width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
             }
         }
-        
+
         return supportActionBar!!
     }
 
@@ -347,9 +320,9 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     @Suppress("SpreadOperator")
     fun setupNavigationToolbar(vararg topLevelDestinationIds: Int) {
         NavigationUI.setupWithNavController(
-                navigationToolbar,
-                navHost.navController,
-                AppBarConfiguration.Builder(*topLevelDestinationIds).build()
+            navigationToolbar,
+            navHost.navController,
+            AppBarConfiguration.Builder(*topLevelDestinationIds).build()
         )
 
         navigationToolbar.setNavigationOnClickListener {
@@ -360,7 +333,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     private fun openPopup(webExtensionState: WebExtensionState) {
         val fm: FragmentManager = supportFragmentManager
         val editNameDialogFragment =
-            if(Utils().isTablet(this)) WebExtensionTabletPopupFragment()
+            if (Utils().isTablet(this)) WebExtensionTabletPopupFragment()
             else WebExtensionPopupFragment()
 
         val bundle = Bundle()
@@ -374,13 +347,13 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
 
     @Suppress("LongParameterList")
     fun openToBrowserAndLoad(
-            searchTermOrURL: String,
-            newTab: Boolean,
-            from: BrowserDirection,
-            customTabSessionId: String? = null,
-            engine: SearchEngine? = null,
-            forceSearch: Boolean = false,
-            flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none()
+        searchTermOrURL: String,
+        newTab: Boolean,
+        from: BrowserDirection,
+        customTabSessionId: String? = null,
+        engine: SearchEngine? = null,
+        forceSearch: Boolean = false,
+        flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none()
     ) {
         openToBrowser(from, customTabSessionId)
         load(searchTermOrURL, newTab, engine, forceSearch, flags)
@@ -396,26 +369,28 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     }
 
     protected open fun getNavDirections(
-            from: BrowserDirection,
-            customTabSessionId: String?
+        from: BrowserDirection,
+        customTabSessionId: String?
     ): NavDirections? = when (from) {
         BrowserDirection.FromGlobal ->
             NavGraphDirections.actionGlobalBrowser(customTabSessionId)
+
         BrowserDirection.FromHome ->
             HomeFragmentDirections.actionGlobalBrowser(customTabSessionId)
+
         BrowserDirection.FromSearchDialog ->
             SearchDialogFragmentDirections.actionGlobalBrowser(customTabSessionId)
     }
 
     private fun load(
-            searchTermOrURL: String,
-            newTab: Boolean,
-            engine: SearchEngine?,
-            forceSearch: Boolean,
-            flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none()
+        searchTermOrURL: String,
+        newTab: Boolean,
+        engine: SearchEngine?,
+        forceSearch: Boolean,
+        flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none()
     ) {
         if ((!forceSearch && searchTermOrURL.isUrl()) || engine == null) {
-            if(newTab) {
+            if (newTab) {
                 components.tabsUseCases.addTab.invoke(
                     searchTermOrURL.toNormalizedUrl(),
                     flags = flags,
@@ -428,10 +403,10 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             if (newTab) {
                 components.searchUseCases.newTabSearch
                     .invoke(
-                            searchTermOrURL,
-                            SessionState.Source.Internal.UserEntered,
-                            true,
-                            searchEngine = engine
+                        searchTermOrURL,
+                        SessionState.Source.Internal.UserEntered,
+                        true,
+                        searchEngine = engine
                     )
             } else {
                 components.searchUseCases.defaultSearch.invoke(searchTermOrURL, engine)
@@ -454,7 +429,7 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             height = 0
             width = 0
         }
-        
+
         // If already inflated, hide the toolbar completely
         if (isToolbarInflated) {
             navigationToolbar.visibility = android.view.View.GONE
@@ -471,13 +446,13 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
     private fun enableDynamicStatusBar() {
         // Simple approach: transparent status bar, content behind it
         window.statusBarColor = android.graphics.Color.TRANSPARENT
-        
+
         // Enable content to draw behind status bar
         window.decorView.systemUiVisibility = (
-            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        )
-        
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                )
+
         // Make status bar icons visible
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = true // Dark icons for better visibility

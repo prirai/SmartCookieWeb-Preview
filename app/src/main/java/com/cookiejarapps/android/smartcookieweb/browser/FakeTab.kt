@@ -40,12 +40,6 @@ class FakeTab @JvmOverloads constructor(
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
 
-        val store = context.components.store
-        store.state.selectedTab?.let {
-            val count = store.state.getNormalOrPrivateTabs(it.content.private).size
-            binding.tabButton.setCount(count)
-        }
-
         binding.previewThumbnail.translationY = if (preferences.shouldUseBottomToolbar) {
             binding.fakeToolbar.height.toFloat()
         } else {
