@@ -71,6 +71,9 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onStart() {
         super.onStart()
 
+        // Reset flag to scroll to selected tab when modal reopens
+        isInitializing = true
+
         // Configure bottom sheet behavior
         val bottomSheetDialog = dialog as com.google.android.material.bottomsheet.BottomSheetDialog
         val behavior = bottomSheetDialog.behavior
@@ -965,17 +968,20 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     selectedTabId = store.selectedTabId
                 )
 
-                // Scroll to selected tab
-                store.selectedTabId?.let { selectedId ->
-                    val position = tabsAdapter.findPositionOfTab(selectedId)
-                    if (position != -1) {
-                        binding.tabsRecyclerView.post {
-                            (binding.tabsRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
-                                position,
-                                100
-                            )
+                // Scroll to selected tab only on initial load
+                if (isInitializing) {
+                    store.selectedTabId?.let { selectedId ->
+                        val position = tabsAdapter.findPositionOfTab(selectedId)
+                        if (position != -1) {
+                            binding.tabsRecyclerView.post {
+                                (binding.tabsRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
+                                    position,
+                                    100
+                                )
+                            }
                         }
                     }
+                    isInitializing = false
                 }
 
                 binding.tabsRecyclerView.animate()
