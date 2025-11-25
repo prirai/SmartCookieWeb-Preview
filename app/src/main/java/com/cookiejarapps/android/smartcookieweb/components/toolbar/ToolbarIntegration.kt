@@ -53,11 +53,8 @@ abstract class ToolbarIntegration(
         MenuPresenter(toolbar, context.components.store, sessionId)
 
     init {
-        toolbar.display.menuBuilder = toolbarMenu.menuBuilder
-        // Hide menu button from toolbar if bottom toolbar is enabled (but keep menu functionality)
-        if (UserPreferences(context).shouldUseBottomToolbar) {
-            toolbar.display.menuBuilder = null
-        }
+        // Always hide menu button from address bar (it's shown in the contextual toolbar instead)
+        toolbar.display.menuBuilder = null
         toolbar.private = isPrivate
     }
 
@@ -99,19 +96,16 @@ class DefaultToolbarIntegration(
 ) {
 
     init {
-        toolbar.display.menuBuilder = toolbarMenu.menuBuilder
-        // Hide menu button from toolbar if bottom toolbar is enabled (but keep menu functionality)
-        if (UserPreferences(context).shouldUseBottomToolbar) {
-            toolbar.display.menuBuilder = null
-        }
+        // Always hide menu button from address bar (it's shown in the contextual toolbar instead)
+        toolbar.display.menuBuilder = null
         toolbar.private = isPrivate
 
         toolbar.display.indicators =
-             listOf(
-                    DisplayToolbar.Indicators.SECURITY,
-                    DisplayToolbar.Indicators.EMPTY,
-                    DisplayToolbar.Indicators.HIGHLIGHT
-                )
+            listOf(
+                DisplayToolbar.Indicators.SECURITY,
+                DisplayToolbar.Indicators.EMPTY,
+                DisplayToolbar.Indicators.HIGHLIGHT
+            )
 
 
         toolbar.display.colors = toolbar.display.colors.copy(
@@ -133,30 +127,15 @@ class DefaultToolbarIntegration(
 
         toolbar.display.setUrlBackground(AppCompatResources.getDrawable(context, R.drawable.toolbar_background))
 
-        if(isPrivate) {
-            toolbar.display.setUrlBackground(AppCompatResources.getDrawable(context, R.drawable.toolbar_background_private))
-        }
-
-        // Only add tab counter if bottom toolbar is disabled
-        if (!UserPreferences(context).shouldUseBottomToolbar) {
-            val tabsAction = TabCounterToolbarButton(
-                lifecycleOwner = lifecycleOwner,
-                showTabs = {
-                    toolbar.hideKeyboard()
-                    interactor.onTabCounterClicked()
-                },
-                store = store
+        if (isPrivate) {
+            toolbar.display.setUrlBackground(
+                AppCompatResources.getDrawable(
+                    context,
+                    R.drawable.toolbar_background_private
+                )
             )
-
-            val tabCount = if (isPrivate) {
-                store.state.privateTabs.size
-            } else {
-                store.state.normalTabs.size
-            }
-
-            tabsAction.updateCount(tabCount)
-
-            toolbar.addNavigationAction(tabsAction)
         }
+
+        // Tab counter is not added to the address bar (it's shown in the contextual toolbar instead)
     }
 }

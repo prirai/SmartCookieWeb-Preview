@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <mozilla.components.browser.toolbar.BrowserToolbar
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -6,6 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="@dimen/browser_toolbar_height"
     android:layout_gravity="top"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
     android:background="?attr/colorSurface"
     android:clickable="true"
     android:focusable="true"
@@ -14,4 +16,5 @@
     app:browserToolbarInsecureColor="?android:attr/textColorPrimary"
     app:browserToolbarMenuColor="?android:attr/textColorPrimary"
     app:browserToolbarProgressBarGravity="bottom"
-    app:browserToolbarSecureColor="?android:attr/textColorPrimary" />
+    app:browserToolbarSecureColor="?android:attr/textColorPrimary"
+/>
