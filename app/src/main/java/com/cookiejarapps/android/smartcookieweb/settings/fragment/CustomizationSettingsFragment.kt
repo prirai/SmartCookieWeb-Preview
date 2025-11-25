@@ -60,9 +60,9 @@ class CustomizationSettingsFragment : BaseSettingsFragment() {
 
         switchPreference(
             preference = requireContext().resources.getString(R.string.key_move_navbar),
-            isChecked = UserPreferences(requireContext()).shouldUseBottomToolbar,
+            isChecked = !UserPreferences(requireContext()).shouldUseBottomToolbar,
             onCheckChange = {
-                UserPreferences(requireContext()).shouldUseBottomToolbar = it
+                UserPreferences(requireContext()).shouldUseBottomToolbar = !it
             }
         )
 

@@ -334,7 +334,7 @@
     <item>@string/homepage_background_url</item>
   </string-array>
 
-  <string name="move_navbar">Move navbar to bottom</string>
+  <string name="move_navbar">Move address bar to top</string>
 
   <string-array name="homepage_types" translatable="false">
     <item>@string/default_word</item>

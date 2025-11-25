@@ -29,7 +29,7 @@ class UserPreferences(appContext: Context) : PreferencesHolder {
     var searchEngineChoice by intPreference(SEARCH_ENGINE, 0)
     var customSearchEngine by booleanPreference(CUSTOM_SEARCH_ENGINE, false)
     var customSearchEngineURL by stringPreference(CUSTOM_SEARCH_ENGINE_URL, "")
-    var toolbarPosition by intPreference(TOOLBAR_POSITION, ToolbarPosition.TOP.ordinal)
+    var toolbarPosition by intPreference(TOOLBAR_POSITION, ToolbarPosition.BOTTOM.ordinal)
     var homepageType by intPreference(HOMEPAGE_TYPE, HomepageChoice.VIEW.ordinal)
     var customHomepageUrl by stringPreference(HOMEPAGE_URL, "")
     var appThemeChoice by intPreference(APP_THEME_CHOICE, ThemeChoice.SYSTEM.ordinal)
