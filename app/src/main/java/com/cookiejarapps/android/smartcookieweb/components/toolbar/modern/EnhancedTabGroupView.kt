@@ -737,7 +737,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                 .translationY(-height.toFloat())
                 .scaleX(0.95f)
                 .scaleY(0.95f)
-                .setDuration(800)
+                .setDuration(300)
                 .withEndAction { visibility = GONE }
                 .start()
         }

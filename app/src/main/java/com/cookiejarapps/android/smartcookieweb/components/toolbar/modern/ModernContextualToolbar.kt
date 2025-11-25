@@ -432,7 +432,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
             refreshButton.contentDescription = "Stop loading"
             refreshButton.animate()
                 .rotation(refreshButton.rotation + 180f)
-                .setDuration(800)
+                .setDuration(300)
                 .start()
         } else {
             refreshButton.setImageResource(R.drawable.ic_refresh)

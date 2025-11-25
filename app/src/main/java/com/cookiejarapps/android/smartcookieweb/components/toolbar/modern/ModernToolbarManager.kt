@@ -157,7 +157,14 @@ class ModernToolbarManager(
     private fun addBrowserToolbar() {
         browserToolbar?.let { toolbar ->
             // Remove from existing parent first
-            (toolbar.parent as? ViewGroup)?.removeView(toolbar)
+            val oldParent = toolbar.parent as? ViewGroup
+            oldParent?.removeView(toolbar)
+
+            // Hide the old toolbar container to prevent black bar at top when using bottom toolbar
+            if (toolbarPosition == com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarPosition.BOTTOM) {
+                oldParent?.visibility = android.view.View.GONE
+                oldParent?.layoutParams?.height = 0
+            }
 
             modernToolbarSystem?.addComponent(
                 toolbar,

@@ -280,6 +280,78 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
         }
 
     override fun getSupportActionBarAndInflateIfNecessary(): ActionBar {
+        // Don't inflate navigation toolbar when using bottom toolbar
+        if (UserPreferences(this).shouldUseBottomToolbar) {
+            // Return a dummy action bar to satisfy the interface
+            // The bottom toolbar doesn't need an ActionBar
+            return object : ActionBar() {
+                override fun setCustomView(view: android.view.View?) {}
+                override fun setCustomView(view: android.view.View?, layoutParams: LayoutParams?) {}
+                override fun setCustomView(resId: Int) {}
+                override fun setIcon(resId: Int) {}
+                override fun setIcon(icon: android.graphics.drawable.Drawable?) {}
+                override fun setLogo(resId: Int) {}
+                override fun setLogo(logo: android.graphics.drawable.Drawable?) {}
+                override fun setListNavigationCallbacks(
+                    adapter: android.widget.SpinnerAdapter?,
+                    callback: OnNavigationListener?
+                ) {
+                }
+
+                override fun setSelectedNavigationItem(position: Int) {}
+                override fun getSelectedNavigationIndex(): Int = 0
+                override fun getNavigationItemCount(): Int = 0
+                override fun setTitle(title: CharSequence?) {}
+                override fun setTitle(resId: Int) {}
+                override fun setSubtitle(subtitle: CharSequence?) {}
+                override fun setSubtitle(resId: Int) {}
+                override fun setDisplayOptions(options: Int) {}
+                override fun setDisplayOptions(options: Int, mask: Int) {}
+                override fun setDisplayUseLogoEnabled(useLogo: Boolean) {}
+                override fun setDisplayShowHomeEnabled(showHome: Boolean) {}
+                override fun setDisplayHomeAsUpEnabled(showHomeAsUp: Boolean) {}
+                override fun setDisplayShowTitleEnabled(showTitle: Boolean) {}
+                override fun setDisplayShowCustomEnabled(showCustom: Boolean) {}
+                override fun setBackgroundDrawable(d: android.graphics.drawable.Drawable?) {}
+                override fun getThemedContext(): android.content.Context = this@BrowserActivity
+                override fun getCustomView(): android.view.View? = null
+                override fun getTitle(): CharSequence? = null
+                override fun getSubtitle(): CharSequence? = null
+                override fun getNavigationMode(): Int = 0
+                override fun setNavigationMode(mode: Int) {}
+                override fun getDisplayOptions(): Int = 0
+                override fun newTab(): Tab? = null
+                override fun addTab(tab: Tab?) {}
+                override fun addTab(tab: Tab?, setSelected: Boolean) {}
+                override fun addTab(tab: Tab?, position: Int) {}
+                override fun addTab(tab: Tab?, position: Int, setSelected: Boolean) {}
+                override fun removeTab(tab: Tab?) {}
+                override fun removeTabAt(position: Int) {}
+                override fun removeAllTabs() {}
+                override fun selectTab(tab: Tab?) {}
+                override fun getSelectedTab(): Tab? = null
+                override fun getTabAt(index: Int): Tab? = null
+                override fun getTabCount(): Int = 0
+                override fun getHeight(): Int = 0
+                override fun show() {}
+                override fun hide() {}
+                override fun isShowing(): Boolean = false
+                override fun addOnMenuVisibilityListener(listener: OnMenuVisibilityListener?) {}
+                override fun removeOnMenuVisibilityListener(listener: OnMenuVisibilityListener?) {}
+                override fun setHomeButtonEnabled(enabled: Boolean) {}
+                override fun setHomeAsUpIndicator(resId: Int) {}
+                override fun setHomeAsUpIndicator(indicator: android.graphics.drawable.Drawable?) {}
+                override fun setHomeActionContentDescription(resId: Int) {}
+                override fun setHomeActionContentDescription(description: CharSequence?) {}
+                override fun setHideOnContentScrollEnabled(hideOnContentScroll: Boolean) {}
+                override fun isHideOnContentScrollEnabled(): Boolean = false
+                override fun getHideOffset(): Int = 0
+                override fun setHideOffset(offset: Int) {}
+                override fun setElevation(elevation: Float) {}
+                override fun getElevation(): Float = 0f
+            }
+        }
+
         if (!isToolbarInflated) {
             navigationToolbar = binding.navigationToolbarStub.inflate() as Toolbar
 
@@ -290,19 +362,10 @@ open class BrowserActivity : LocaleAwareAppCompatActivity(), ComponentCallbacks2
             isToolbarInflated = true
         }
 
-        // Hide navigation toolbar when using bottom toolbar to prevent any visual artifacts
-        if (UserPreferences(this).shouldUseBottomToolbar) {
-            navigationToolbar.visibility = android.view.View.GONE
-            navigationToolbar.layoutParams?.apply {
-                height = 0
-                width = 0
-            }
-        } else {
-            navigationToolbar.visibility = android.view.View.VISIBLE
-            navigationToolbar.layoutParams?.apply {
-                height = resources.getDimensionPixelSize(R.dimen.browser_toolbar_height)
-                width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            }
+        navigationToolbar.visibility = android.view.View.VISIBLE
+        navigationToolbar.layoutParams?.apply {
+            height = resources.getDimensionPixelSize(R.dimen.browser_toolbar_height)
+            width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
         }
 
         return supportActionBar!!

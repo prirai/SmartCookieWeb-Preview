@@ -95,6 +95,14 @@ class ModernToolbarSystem @JvmOverloads constructor(
 
     fun setEngineView(engine: EngineView) {
         engineView = engine
+
+        // CRITICAL: For bottom toolbar, immediately set clipping to 0
+        // to prevent black bar at top before any scroll events
+        if (toolbarPosition == ToolbarPosition.BOTTOM) {
+            engine.setDynamicToolbarMaxHeight(0)
+            engine.setVerticalClipping(0)
+        }
+
         updateDynamicToolbarHeight()
     }
 
@@ -103,6 +111,14 @@ class ModernToolbarSystem @JvmOverloads constructor(
     }
 
     private fun updateDynamicToolbarHeight() {
+        // CRITICAL: Don't set dynamic toolbar height for bottom toolbar
+        // Gecko reserves space at the TOP by default, causing black bar at top
+        // Bottom toolbar doesn't need dynamic toolbar behavior
+        if (toolbarPosition == ToolbarPosition.BOTTOM) {
+            engineView?.setDynamicToolbarMaxHeight(0)
+            return
+        }
+
         val totalHeight = getTotalHeight()
         if (totalHeight > 0) {
             engineView?.setDynamicToolbarMaxHeight(totalHeight)
@@ -176,7 +192,12 @@ class ModernToolbarSystem @JvmOverloads constructor(
         } else 1f
 
         // Apply clipping to engine view
-        engineView?.setVerticalClipping(currentOffset)
+        // CRITICAL: Don't clip for bottom toolbar - clipping removes content from TOP
+        if (toolbarPosition == ToolbarPosition.TOP) {
+            engineView?.setVerticalClipping(currentOffset)
+        } else {
+            engineView?.setVerticalClipping(0)
+        }
     }
 
     fun getCurrentOffset(): Int = currentOffset

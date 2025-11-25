@@ -79,18 +79,9 @@ class CustomizationSettingsFragment : BaseSettingsFragment() {
             }
         )
 
-        switchPreference(
-            preference = requireContext().resources.getString(R.string.key_hide_url_bar),
-            isChecked = UserPreferences(requireContext()).hideBarWhileScrolling,
-            onCheckChange = {
-                UserPreferences(requireContext()).hideBarWhileScrolling = it
-                Toast.makeText(
-                    context,
-                    requireContext().resources.getText(R.string.app_restart),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        )
+        // "Hide toolbar while scrolling" is now always enabled for bottom toolbar
+        // Removed from UI settings
+
 
         switchPreference(
             preference = requireContext().resources.getString(R.string.key_show_protocol),
@@ -210,7 +201,8 @@ class CustomizationSettingsFragment : BaseSettingsFragment() {
         val context = requireContext()
         val userPreferences = UserPreferences(context)
 
-        val allAddons = context.components.store.state.extensions.filter { it.value.enabled }.filter { it.value.browserAction != null || it.value.pageAction != null }
+        val allAddons = context.components.store.state.extensions.filter { it.value.enabled }
+            .filter { it.value.browserAction != null || it.value.pageAction != null }
 
         // Get currently allowed add-on IDs
         val allowedAddonIds =
@@ -228,7 +220,7 @@ class CustomizationSettingsFragment : BaseSettingsFragment() {
                 // We'll handle the selection when the user clicks OK
             }
             .setPositiveButton(R.string.mozac_feature_prompts_ok) { _, _ ->
-                if(UserPreferences(requireContext()).showAddonsInBar) {
+                if (UserPreferences(requireContext()).showAddonsInBar) {
                     UserPreferences(requireContext()).showAddonsInBar = false
                 }
 

@@ -601,21 +601,29 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
         val context = requireContext()
 
         if (UserPreferences(context).hideBarWhileScrolling) {
-            binding.engineView.setDynamicToolbarMaxHeight(toolbarHeight)
-
-            val toolbarPosition = if (UserPreferences(context).shouldUseBottomToolbar) {
-                OldToolbarPosition.BOTTOM
+            // CRITICAL: Don't set dynamic toolbar height for bottom toolbar
+            // Gecko reserves space at the TOP by default, which causes black bar
+            if (UserPreferences(context).shouldUseBottomToolbar) {
+                binding.engineView.setDynamicToolbarMaxHeight(0)
+                // For bottom toolbar, don't use OldEngineViewClippingBehavior
+                // as it clips from top and causes black bar
+                val swipeRefreshParams = binding.swipeRefresh.layoutParams as CoordinatorLayout.LayoutParams
+                swipeRefreshParams.topMargin = 0
+                swipeRefreshParams.bottomMargin = 0
+                binding.swipeRefresh.layoutParams = swipeRefreshParams
             } else {
-                OldToolbarPosition.TOP
+                binding.engineView.setDynamicToolbarMaxHeight(toolbarHeight)
+
+                val toolbarPosition = OldToolbarPosition.TOP
+                (binding.swipeRefresh.layoutParams as CoordinatorLayout.LayoutParams).behavior =
+                    OldEngineViewClippingBehavior(
+                        context,
+                        null,
+                        binding.swipeRefresh,
+                        toolbarHeight,
+                        toolbarPosition.ordinal
+                    )
             }
-            (binding.swipeRefresh.layoutParams as CoordinatorLayout.LayoutParams).behavior =
-                OldEngineViewClippingBehavior(
-                    context,
-                    null,
-                    binding.swipeRefresh,
-                    toolbarHeight,
-                    toolbarPosition.ordinal
-                )
         } else {
             binding.engineView.setDynamicToolbarMaxHeight(0)
 

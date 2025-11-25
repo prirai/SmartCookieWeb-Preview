@@ -11,7 +11,7 @@ import com.cookiejarapps.android.smartcookieweb.settings.ThemeChoice
 import com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarPosition
 import mozilla.components.support.ktx.android.content.*
 
-class UserPreferences(appContext: Context): PreferencesHolder {
+class UserPreferences(appContext: Context) : PreferencesHolder {
 
     override val preferences: SharedPreferences =
         appContext.getSharedPreferences(SCW_PREFERENCES, MODE_PRIVATE)
@@ -43,10 +43,15 @@ class UserPreferences(appContext: Context): PreferencesHolder {
     var customAddonCollectionName by stringPreference(COLLECTION_NAME, "")
     var autoFontSize by booleanPreference(AUTO_FONT_SIZE, true)
     var fontSizeFactor by floatPreference(FONT_SIZE_FACTOR, 1f)
-    var hideBarWhileScrolling by booleanPreference(HIDE_URL_BAR, true)
+
+    // Always enabled for bottom toolbar to prevent black bar at top
+    var hideBarWhileScrolling: Boolean
+        get() = true
+        set(_) { /* Always enabled, ignore sets */ }
     var stackFromBottom by booleanPreference(STACK_FROM_BOTTOM, false)
     var showTabsInGrid by booleanPreference(SHOW_TABS_IN_GRID, false)
     var swipeToRefresh by booleanPreference(SWIPE_TO_REFRESH, true)
+
     // SECURITY: Remote debugging disabled for production security
     // var remoteDebugging by booleanPreference(REMOTE_DEBUGGING, false)
     var promptExternalDownloader by booleanPreference(PROMPT_EXTERNAL_DOWNLOADER, false)
@@ -57,6 +62,7 @@ class UserPreferences(appContext: Context): PreferencesHolder {
     var trackingProtection by booleanPreference(TRACKING_PROTECTION, true)
     var showShortcuts by booleanPreference(SHOW_SHORTCUTS, true)
     var loadShortcutIcons by booleanPreference(LOAD_SHORTCUT_ICONS, true)
+
     // SECURITY: Third-party certificate trust disabled for security
     // var trustThirdPartyCerts by booleanPreference(TRUST_THIRD_PARTY_CERTS, false)
     var barAddonsList by stringPreference(BAR_ADDONS_LIST, "")
@@ -64,16 +70,16 @@ class UserPreferences(appContext: Context): PreferencesHolder {
 
     // TODO: make these configurable & clean up duplicates
     var shouldUseBottomToolbar: Boolean
-        get(){
+        get() {
             return toolbarPosition == ToolbarPosition.BOTTOM.ordinal
         }
-        set(value){
-            toolbarPosition = if(value) ToolbarPosition.BOTTOM.ordinal else ToolbarPosition.TOP.ordinal
+        set(value) {
+            toolbarPosition = if (value) ToolbarPosition.BOTTOM.ordinal else ToolbarPosition.TOP.ordinal
         }
 
     val toolbarPositionType: ToolbarPosition
-        get(){
-            return if(toolbarPosition == ToolbarPosition.BOTTOM.ordinal) ToolbarPosition.BOTTOM else ToolbarPosition.TOP
+        get() {
+            return if (toolbarPosition == ToolbarPosition.BOTTOM.ordinal) ToolbarPosition.BOTTOM else ToolbarPosition.TOP
         }
 
     companion object {
