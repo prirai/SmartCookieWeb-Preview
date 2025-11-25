@@ -278,28 +278,26 @@ class ModernTabPillAdapter(
                 return
             }
 
-            // Try to get from favicon cache
-            try {
-                val context = itemView.context
-                val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
-                val cachedFavicon = faviconCache.getFaviconFromMemory(tab.content.url ?: "")
-
-                if (cachedFavicon != null) {
-                    faviconView.setImageBitmap(cachedFavicon)
-                    return
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("TabPillAdapter", "Could not access FaviconCache", e)
-            }
-
-            // Fallback to generated favicon
+            // Load from cache (memory and disk) or generate
             scope.launch {
                 try {
-                    val favicon = withContext(Dispatchers.IO) {
-                        generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                    val context = itemView.context
+                    val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
+
+                    // This will check memory cache first, then disk cache
+                    val cachedFavicon = faviconCache.loadFavicon(tab.content.url ?: "")
+
+                    if (cachedFavicon != null) {
+                        faviconView.setImageBitmap(cachedFavicon)
+                    } else {
+                        // Generate favicon if not in cache
+                        val favicon = withContext(Dispatchers.IO) {
+                            generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                        }
+                        faviconView.setImageBitmap(favicon)
                     }
-                    faviconView.setImageBitmap(favicon)
                 } catch (e: Exception) {
+                    android.util.Log.w("TabPillAdapter", "Error loading favicon", e)
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }
@@ -645,28 +643,26 @@ class ModernTabPillAdapter(
                 return
             }
 
-            // Try to get from favicon cache
-            try {
-                val context = itemView.context
-                val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
-                val cachedFavicon = faviconCache.getFaviconFromMemory(tab.content.url ?: "")
-
-                if (cachedFavicon != null) {
-                    faviconView.setImageBitmap(cachedFavicon)
-                    return
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("TabPillAdapter", "Could not access FaviconCache for group tab", e)
-            }
-
-            // Fallback to generated favicon
+            // Load from cache (memory and disk) or generate
             scope.launch {
                 try {
-                    val favicon = withContext(Dispatchers.IO) {
-                        generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                    val context = itemView.context
+                    val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
+
+                    // This will check memory cache first, then disk cache
+                    val cachedFavicon = faviconCache.loadFavicon(tab.content.url ?: "")
+
+                    if (cachedFavicon != null) {
+                        faviconView.setImageBitmap(cachedFavicon)
+                    } else {
+                        // Generate favicon if not in cache
+                        val favicon = withContext(Dispatchers.IO) {
+                            generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                        }
+                        faviconView.setImageBitmap(favicon)
                     }
-                    faviconView.setImageBitmap(favicon)
                 } catch (e: Exception) {
+                    android.util.Log.w("TabPillAdapter", "Error loading favicon for group tab", e)
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }
