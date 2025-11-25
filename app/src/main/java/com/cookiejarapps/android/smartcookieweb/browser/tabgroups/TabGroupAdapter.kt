@@ -1,6 +1,7 @@
 package com.cookiejarapps.android.smartcookieweb.browser.tabgroups
 
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -15,6 +16,7 @@ import com.cookiejarapps.android.smartcookieweb.ext.components
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Adapter for displaying tab groups as circular favicons.
@@ -58,12 +60,12 @@ class TabGroupAdapter(
         fun bind(groupWithTabs: TabGroupWithTabs, selectedTabId: String?) {
             val faviconContainer = binding.faviconContainer
             faviconContainer.removeAllViews()
-            
+
             // Get tab details from browser store
             CoroutineScope(Dispatchers.Main).launch {
                 val store = binding.root.context.components.store
                 val faviconCache = binding.root.context.components.faviconCache
-                
+
                 // Create circular favicon for each tab in the group (maintain original order)
                 groupWithTabs.tabIds.forEachIndexed { index, tabId ->
                     val tab = store.state.tabs.find { it.id == tabId }
@@ -73,7 +75,7 @@ class TabGroupAdapter(
                 }
             }
         }
-        
+
         private fun createFaviconCircle(
             container: LinearLayout,
             tab: mozilla.components.browser.state.state.TabSessionState,
@@ -83,37 +85,41 @@ class TabGroupAdapter(
             val context = container.context
             val faviconView = LayoutInflater.from(context)
                 .inflate(R.layout.tab_favicon_circle, container, false)
-            
+
             val faviconContainer = faviconView.findViewById<FrameLayout>(R.id.faviconContainer)
             val imageView = faviconView.findViewById<ImageView>(R.id.faviconImage)
             val selectionIndicator = faviconView.findViewById<View>(R.id.selectionIndicator)
             val closeButton = faviconView.findViewById<ImageView>(R.id.closeButton)
-            
+
             // Set selection state
             selectionIndicator.isVisible = isSelected
-            
+
             // Show close button on hover/long press (for now always visible for testing)
             closeButton.isVisible = true
-            
+
             // Set favicon with smart circular clipping
             if (tab.content.icon != null) {
                 val icon = tab.content.icon!!
                 val minDimension = kotlin.math.min(icon.width, icon.height)
-                
+
                 // Create circular bitmap with proper sizing
-                val circularIcon = android.graphics.Bitmap.createBitmap(minDimension, minDimension, android.graphics.Bitmap.Config.ARGB_8888)
+                val circularIcon = android.graphics.Bitmap.createBitmap(
+                    minDimension,
+                    minDimension,
+                    android.graphics.Bitmap.Config.ARGB_8888
+                )
                 val canvas = android.graphics.Canvas(circularIcon)
                 val paint = android.graphics.Paint().apply {
                     isAntiAlias = true
                 }
-                
+
                 // Draw circular background
                 val radius = minDimension / 2f
                 canvas.drawCircle(radius, radius, radius, paint)
-                
+
                 // Clip to circle and draw original icon
                 paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
-                
+
                 // Scale and center the original icon
                 val srcRect = android.graphics.Rect(
                     (icon.width - minDimension) / 2,
@@ -123,7 +129,7 @@ class TabGroupAdapter(
                 )
                 val dstRect = android.graphics.Rect(0, 0, minDimension, minDimension)
                 canvas.drawBitmap(icon, srcRect, dstRect, paint)
-                
+
                 imageView.setImageBitmap(circularIcon)
             } else {
                 // Try to load from cache
@@ -137,32 +143,47 @@ class TabGroupAdapter(
                     }
                 }
             }
-            
-            // Set click listener for tab switching
-            faviconView.setOnClickListener {
-                android.util.Log.d("TabGroupAdapter", "Favicon clicked for tab: ${tab.id}")
-                onTabClick(tab.id)
-            }
-            
-            faviconContainer.setOnClickListener {
-                android.util.Log.d("TabGroupAdapter", "Favicon container clicked for tab: ${tab.id}")
-                onTabClick(tab.id)
-            }
-            
-            // Set close button click listener
-            closeButton.setOnClickListener {
-                android.util.Log.d("TabGroupAdapter", "Close button clicked for tab: ${tab.id}")
-                // Close the tab
-                CoroutineScope(Dispatchers.Main).launch {
-                    try {
-                        val tabsUseCases = context.components.tabsUseCases
-                        tabsUseCases.removeTab(tab.id)
-                    } catch (e: Exception) {
-                        android.util.Log.e("TabGroupAdapter", "Error closing tab: ${e.message}")
+
+            // Set touch listener to distinguish between tap and drag
+            val touchListener = createTapOnlyTouchListener(tab.id)
+            faviconView.setOnTouchListener(touchListener)
+            faviconContainer.setOnTouchListener(touchListener)
+
+            // Set close button with tap-only touch listener
+            closeButton.setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        v.isPressed = true
+                        true
                     }
+
+                    MotionEvent.ACTION_UP -> {
+                        if (v.isPressed) {
+                            v.isPressed = false
+                            v.performClick()
+                            android.util.Log.d("TabGroupAdapter", "Close button clicked for tab: ${tab.id}")
+                            // Close the tab
+                            CoroutineScope(Dispatchers.Main).launch {
+                                try {
+                                    val tabsUseCases = context.components.tabsUseCases
+                                    tabsUseCases.removeTab(tab.id)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("TabGroupAdapter", "Error closing tab: ${e.message}")
+                                }
+                            }
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        v.isPressed = false
+                        true
+                    }
+
+                    else -> false
                 }
             }
-            
+
             // Make sure the views are clickable and focusable
             faviconView.isClickable = true
             faviconView.isFocusable = true
@@ -170,8 +191,70 @@ class TabGroupAdapter(
             faviconContainer.isFocusable = true
             closeButton.isClickable = true
             closeButton.isFocusable = true
-            
+
             container.addView(faviconView)
+        }
+
+        /**
+         * Creates a touch listener that only triggers on tap, not during drag/scroll.
+         */
+        private fun createTapOnlyTouchListener(tabId: String): View.OnTouchListener {
+            var downX = 0f
+            var downY = 0f
+            var downTime = 0L
+            val tapTimeout = 200L // Max time for a tap in milliseconds
+            val tapSlop = 10f // Max movement in pixels to still be considered a tap
+
+            return View.OnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = event.x
+                        downY = event.y
+                        downTime = System.currentTimeMillis()
+                        v.isPressed = true
+                        true
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaX = abs(event.x - downX)
+                        val deltaY = abs(event.y - downY)
+
+                        // If moved too much, cancel the tap
+                        if (deltaX > tapSlop || deltaY > tapSlop) {
+                            v.isPressed = false
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        val deltaX = abs(event.x - downX)
+                        val deltaY = abs(event.y - downY)
+                        val deltaTime = System.currentTimeMillis() - downTime
+
+                        // Only trigger click if it's a tap (minimal movement and quick)
+                        if (deltaX <= tapSlop && deltaY <= tapSlop && deltaTime <= tapTimeout && v.isPressed) {
+                            v.isPressed = false
+                            v.performClick()
+                            android.util.Log.d("TabGroupAdapter", "Tab tapped (not dragged): $tabId")
+                            onTabClick(tabId)
+                        } else {
+                            v.isPressed = false
+                            android.util.Log.d(
+                                "TabGroupAdapter",
+                                "Tab drag detected, not switching. deltaX=$deltaX, deltaY=$deltaY, deltaTime=$deltaTime"
+                            )
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        v.isPressed = false
+                        true
+                    }
+
+                    else -> false
+                }
+            }
         }
 
     }

@@ -3,6 +3,7 @@ package com.cookiejarapps.android.smartcookieweb.browser.tabgroups
 import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.isVisible
@@ -32,6 +33,7 @@ class TabGroupBar @JvmOverloads constructor(
     private var adapter: TabGroupAdapter? = null
     private var tabGroupManager: TabGroupManager? = null
     private var listener: TabGroupBarListener? = null
+    private var isScrolling = false
 
     init {
         orientation = HORIZONTAL
@@ -46,13 +48,13 @@ class TabGroupBar @JvmOverloads constructor(
     ) {
         this.tabGroupManager = tabGroupManager
         this.listener = listener
-        
+
         adapter = TabGroupAdapter { tabId ->
             listener.onTabSelected(tabId)
         }
-        
+
         binding.tabGroupsRecyclerView.adapter = adapter
-        
+
         // Observe groups and current group changes
         // Observe current group changes
         lifecycleOwner.lifecycleScope.launch {
@@ -60,7 +62,7 @@ class TabGroupBar @JvmOverloads constructor(
                 updateCurrentGroup(currentGroup)
             }
         }
-        
+
         // Observe only selected tab changes to reduce excessive updates
         context.components.store.flowScoped(lifecycleOwner) { flow ->
             flow.map { state -> state.selectedTabId }
@@ -79,19 +81,57 @@ class TabGroupBar @JvmOverloads constructor(
         binding.tabGroupsRecyclerView.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             setHasFixedSize(false)
+
+            // Add scroll listener to detect when user is scrolling
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    super.onScrollStateChanged(recyclerView, newState)
+                    isScrolling = newState != RecyclerView.SCROLL_STATE_IDLE
+                    android.util.Log.d(
+                        "TabGroupBar",
+                        "Scroll state changed: ${if (isScrolling) "SCROLLING" else "IDLE"}"
+                    )
+                }
+            })
+
+            // Intercept touch events to prevent clicks during scroll
+            addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+                private var startX = 0f
+                private var startY = 0f
+
+                override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                    when (e.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            startX = e.x
+                            startY = e.y
+                        }
+
+                        MotionEvent.ACTION_MOVE -> {
+                            val deltaX = kotlin.math.abs(e.x - startX)
+                            val deltaY = kotlin.math.abs(e.y - startY)
+
+                            // If horizontal movement is detected, we're scrolling
+                            if (deltaX > 10 && deltaX > deltaY) {
+                                isScrolling = true
+                            }
+                        }
+                    }
+                    return false // Don't actually intercept, just monitor
+                }
+            })
         }
     }
 
     private fun updateCurrentGroup(currentGroup: TabGroupWithTabs?) {
         // Only show if current group has multiple tabs
         val shouldShow = currentGroup != null && currentGroup.tabCount > 1
-        
+
         if (shouldShow) {
             // Get selected tab ID from the browser store
             val selectedTabId = context.components.store.state.selectedTabId
             adapter?.updateCurrentGroup(currentGroup, selectedTabId)
             isVisible = true
-            
+
             // Setup scroll behavior when tab group bar becomes visible (if not already done)
             post {
                 setupScrollBehaviorIfNeeded()
@@ -100,7 +140,7 @@ class TabGroupBar @JvmOverloads constructor(
             isVisible = false
         }
     }
-    
+
     private fun setupScrollBehaviorIfNeeded() {
         val prefs = com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences(context)
         if (prefs.hideBarWhileScrolling && height > 0) {
@@ -117,7 +157,7 @@ class TabGroupBar @JvmOverloads constructor(
             }
         }
     }
-    
+
     /**
      * Force refresh the current group display with updated selection state.
      */
@@ -128,6 +168,11 @@ class TabGroupBar @JvmOverloads constructor(
             adapter?.updateCurrentGroup(currentGroup, selectedTabId)
         }
     }
+
+    /**
+     * Check if the bar is currently being scrolled.
+     */
+    fun isScrolling(): Boolean = isScrolling
 
     interface TabGroupBarListener {
         fun onTabSelected(tabId: String)
