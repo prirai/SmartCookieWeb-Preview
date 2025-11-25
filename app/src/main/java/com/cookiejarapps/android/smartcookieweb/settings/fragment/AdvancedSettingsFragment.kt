@@ -2,6 +2,8 @@ package com.cookiejarapps.android.smartcookieweb.settings.fragment
 
 import android.app.AlertDialog
 import android.app.ProgressDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -9,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.preference.Preference
 import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.addons.WebExtensionPromptFeature
@@ -22,32 +25,45 @@ import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.webextension.InstallationMethod
 import mozilla.components.support.base.feature.ViewBoundFeatureWrapper
 import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
+import java.io.File
+import java.io.FileOutputStream
 
 
 class AdvancedSettingsFragment : BaseSettingsFragment() {
 
     private val webExtensionPromptFeature = ViewBoundFeatureWrapper<WebExtensionPromptFeature>()
 
+    private val pickXpiFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { handleXpiFileSelection(it) }
+    }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, s: String?) {
         addPreferencesFromResource(R.xml.preferences_advanced)
 
-        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled = UserPreferences(
-            requireContext()
-        ).customAddonCollection
-        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled = UserPreferences(
-            requireContext()
-        ).customAddonCollection
+        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled =
+            UserPreferences(
+                requireContext()
+            ).customAddonCollection
+        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled =
+            UserPreferences(
+                requireContext()
+            ).customAddonCollection
 
         clickablePreference(
             preference = resources.getString(R.string.key_sideload_xpi),
-            onClick = { sideloadXpi() }
+            onClick = { sideloadXpiLink() }
+        )
+
+        clickablePreference(
+            preference = resources.getString(R.string.key_sideload_xpi_file),
+            onClick = { sideloadXpiFile() }
         )
 
         // SECURITY: Remote debugging disabled for security
         switchPreference(
-                preference = requireContext().resources.getString(R.string.key_remote_debugging),
-                isChecked = false,
-                isEnabled = false
+            preference = requireContext().resources.getString(R.string.key_remote_debugging),
+            isChecked = false,
+            isEnabled = false
         ) {
             // Disabled for security reasons
         }
@@ -79,22 +95,26 @@ class AdvancedSettingsFragment : BaseSettingsFragment() {
         ) {
             if (it && !UserPreferences(requireContext()).shownCollectionDisclaimer) {
                 AlertDialog.Builder(context)
-                        .setTitle(resources.getString(R.string.custom_collection))
-                        .setMessage(resources.getString(R.string.use_custom_collection_disclaimer))
-                        .setPositiveButton(android.R.string.yes) { _, _ ->
-                            UserPreferences(requireContext()).customAddonCollection = it
-                            preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled = it
-                            preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled = it
-                        }
-                        .setNegativeButton(android.R.string.no, null)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .show()
+                    .setTitle(resources.getString(R.string.custom_collection))
+                    .setMessage(resources.getString(R.string.use_custom_collection_disclaimer))
+                    .setPositiveButton(android.R.string.yes) { _, _ ->
+                        UserPreferences(requireContext()).customAddonCollection = it
+                        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled =
+                            it
+                        preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled =
+                            it
+                    }
+                    .setNegativeButton(android.R.string.no, null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show()
                 UserPreferences(requireContext()).shownCollectionDisclaimer = true
             } else {
                 UserPreferences(requireContext()).customAddonCollection = it
-                preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled = it
-                preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled = it
-                if(!it) Toast.makeText(
+                preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_user))!!.isEnabled =
+                    it
+                preferenceScreen.findPreference<Preference>(resources.getString(R.string.key_collection_name))!!.isEnabled =
+                    it
+                if (!it) Toast.makeText(
                     context,
                     requireContext().resources.getText(R.string.app_restart),
                     Toast.LENGTH_LONG
@@ -114,9 +134,9 @@ class AdvancedSettingsFragment : BaseSettingsFragment() {
 
     }
 
-    private fun sideloadXpi() {
+    private fun sideloadXpiLink() {
         val builder = MaterialAlertDialogBuilder(requireContext())
-        builder.setTitle(resources.getString(R.string.load_xpi))
+        builder.setTitle(resources.getString(R.string.load_xpi_link))
 
         val input = EditText(requireContext())
         input.hint = getString(R.string.url)
@@ -129,39 +149,132 @@ class AdvancedSettingsFragment : BaseSettingsFragment() {
                 requireContext().resources.getString(R.string.loading), true
             )
 
-            components.engine.installWebExtension(input.text.toString(), InstallationMethod.FROM_FILE, onSuccess = {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val addons = requireContext().components.addonCollectionProvider.getFeaturedAddons()
-                    for(i in addons){
-                        if(i.id == it.id){
-                            runOnUiThread {
-                                MaterialAlertDialogBuilder(requireContext())
-                                    .setTitle(resources.getString(R.string.error))
-                                    .setMessage(resources.getString(R.string.already_available))
-                                    .setNeutralButton(resources.getString(R.string.mozac_feature_prompts_ok)) { dialog, _ ->
-                                        dialog.dismiss()
-                                    }
-                                    .show()
-                                components.engine.uninstallWebExtension(it)
+            components.engine.installWebExtension(
+                input.text.toString(), InstallationMethod.FROM_FILE, onSuccess = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val addons = requireContext().components.addonCollectionProvider.getFeaturedAddons()
+                        for (i in addons) {
+                            if (i.id == it.id) {
+                                runOnUiThread {
+                                    MaterialAlertDialogBuilder(requireContext())
+                                        .setTitle(resources.getString(R.string.error))
+                                        .setMessage(resources.getString(R.string.already_available))
+                                        .setNeutralButton(resources.getString(R.string.mozac_feature_prompts_ok)) { dialog, _ ->
+                                            dialog.dismiss()
+                                        }
+                                        .show()
+                                    components.engine.uninstallWebExtension(it)
+                                }
+                                loadingDialog.dismiss()
+                                return@launch
                             }
+                        }
+                        runOnUiThread {
                             loadingDialog.dismiss()
-                            return@launch
+                            Toast.makeText(
+                                requireContext(),
+                                requireContext().resources.getString(R.string.installed),
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
-                    runOnUiThread {
-                        loadingDialog.dismiss()
-                        Toast.makeText(requireContext(), requireContext().resources.getString(R.string.installed), Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
+                },
                 onError = { _ ->
-                    Toast.makeText(requireContext(), requireContext().resources.getString(R.string.error), Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        requireContext(),
+                        requireContext().resources.getString(R.string.error),
+                        Toast.LENGTH_LONG
+                    ).show()
                     loadingDialog.dismiss()
                 })
         }
         builder.setNegativeButton(resources.getString(R.string.cancel)) { dialog, _ -> dialog.cancel() }
 
         builder.show()
+    }
+
+    private fun sideloadXpiFile() {
+        pickXpiFile.launch("application/x-xpinstall")
+    }
+
+    private fun handleXpiFileSelection(uri: Uri) {
+        val loadingDialog = ProgressDialog.show(
+            activity, "",
+            requireContext().resources.getString(R.string.loading), true
+        )
+
+        try {
+            // Copy file to cache directory
+            val contentResolver = requireContext().contentResolver
+            val inputStream = contentResolver.openInputStream(uri)
+            val cacheDir = requireContext().cacheDir
+            val tempFile = File(cacheDir, "temp_extension.xpi")
+
+            inputStream?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Install from the local file
+            components.engine.installWebExtension(
+                "file://${tempFile.absolutePath}",
+                InstallationMethod.FROM_FILE,
+                onSuccess = { extension ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val addons = requireContext().components.addonCollectionProvider.getFeaturedAddons()
+                        for (addon in addons) {
+                            if (addon.id == extension.id) {
+                                runOnUiThread {
+                                    MaterialAlertDialogBuilder(requireContext())
+                                        .setTitle(resources.getString(R.string.error))
+                                        .setMessage(resources.getString(R.string.already_available))
+                                        .setNeutralButton(resources.getString(R.string.mozac_feature_prompts_ok)) { dialog, _ ->
+                                            dialog.dismiss()
+                                        }
+                                        .show()
+                                    components.engine.uninstallWebExtension(extension)
+                                }
+                                loadingDialog.dismiss()
+                                // Clean up temp file
+                                tempFile.delete()
+                                return@launch
+                            }
+                        }
+                        runOnUiThread {
+                            loadingDialog.dismiss()
+                            Toast.makeText(
+                                requireContext(),
+                                requireContext().resources.getString(R.string.installed),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        // Clean up temp file
+                        tempFile.delete()
+                    }
+                },
+                onError = { error ->
+                    runOnUiThread {
+                        Toast.makeText(
+                            requireContext(),
+                            requireContext().resources.getString(R.string.error),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        loadingDialog.dismiss()
+                    }
+                    // Clean up temp file
+                    tempFile.delete()
+                })
+        } catch (e: Exception) {
+            runOnUiThread {
+                Toast.makeText(
+                    requireContext(),
+                    requireContext().resources.getString(R.string.error) + ": ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                loadingDialog.dismiss()
+            }
+        }
     }
 
     private fun pickCollectionUser() {

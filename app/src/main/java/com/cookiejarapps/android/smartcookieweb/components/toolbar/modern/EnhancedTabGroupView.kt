@@ -143,13 +143,8 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                     // Get dragged tab
                     val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
                     if (draggedTab == null) {
-                        android.util.Log.d("EnhancedTabGroupView", "onChildDraw: draggedTab is null")
                         return
                     }
-                    android.util.Log.d(
-                        "EnhancedTabGroupView",
-                        "onChildDraw: draggedTabId=${draggedTab.id}, dX=$dX, dY=$dY"
-                    )
 
                     // Calculate center position of dragged item
                     val draggedView = viewHolder.itemView
@@ -222,14 +217,11 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                                 draggedCenterY > recyclerViewBounds[1] + recyclerView.height + 30 ||
                                 dY < -100 || dY > 100 // Also check relative drag distance
 
-                        android.util.Log.d(
-                            "EnhancedTabGroupView",
-                            "onChildDraw: Checking ungroup, isOutsideBounds=$isOutsideBounds"
-                        )
+
 
                         if (isOutsideBounds) {
                             targetTabId = "ungroup"
-                            android.util.Log.d("EnhancedTabGroupView", "onChildDraw: Set targetTabId to 'ungroup'")
+
                             // Visual feedback for ungroup
                             draggedView.animate()
                                 .scaleX(0.9f)
@@ -242,10 +234,6 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 
                     // Update visual feedback if target changed
                     if (targetTabId != lastTargetTabId) {
-                        android.util.Log.d(
-                            "EnhancedTabGroupView",
-                            "onChildDraw: Target changed from $lastTargetTabId to $targetTabId"
-                        )
                         // Remove previous highlight
                         lastTargetView?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(100)?.start()
 
@@ -312,18 +300,10 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                     ItemTouchHelper.ACTION_STATE_IDLE -> {
                         // Check if we should create an island based on final position
                         val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
-                        android.util.Log.d(
-                            "EnhancedTabGroupView",
-                            "onSelectedChanged: ACTION_STATE_IDLE, draggedTabId=${draggedTab?.id}, lastTargetTabId=$lastTargetTabId"
-                        )
+
                         if (draggedTab != null && lastTargetTabId != null) {
-                            android.util.Log.d("EnhancedTabGroupView", "onSelectedChanged: Calling handleDrop")
+
                             handleDrop(draggedTab.id, lastTargetTabId!!)
-                        } else {
-                            android.util.Log.d(
-                                "EnhancedTabGroupView",
-                                "onSelectedChanged: Not calling handleDrop (draggedTab or lastTargetTabId is null)"
-                            )
                         }
 
                         // Clear drag state
@@ -354,27 +334,24 @@ class EnhancedTabGroupView @JvmOverloads constructor(
             }
 
             private fun handleDrop(draggedTabId: String, targetId: String) {
-                android.util.Log.d("EnhancedTabGroupView", "handleDrop: draggedTabId=$draggedTabId, targetId=$targetId")
+
                 // First remove the tab from its current island if it's in one
                 val currentIsland = islandManager.getIslandForTab(draggedTabId)
-                android.util.Log.d("EnhancedTabGroupView", "handleDrop: currentIsland=${currentIsland?.id}")
+
 
                 when {
                     targetId.startsWith("island_") -> {
                         // Dropped on island header - add to island
                         val islandId = targetId.removePrefix("island_")
                         if (currentIsland?.id != islandId) {
-                            android.util.Log.d("EnhancedTabGroupView", "handleDrop: Adding to island $islandId")
+
                             performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                             if (currentIsland != null) {
-                                android.util.Log.d(
-                                    "EnhancedTabGroupView",
-                                    "handleDrop: Removing from current island ${currentIsland.id}"
-                                )
+
                                 islandManager.removeTabFromIsland(draggedTabId, currentIsland.id)
                             }
                             islandManager.addTabToIsland(draggedTabId, islandId)
-                            android.util.Log.d("EnhancedTabGroupView", "handleDrop: Calling refreshDisplay()")
+
                             post {
                                 lastTabIds = emptyList()
                                 refreshDisplay()
@@ -399,7 +376,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                                 islandManager.removeTabFromIsland(draggedTabId, currentIsland.id)
                             }
                             islandManager.addTabToIsland(draggedTabId, islandId)
-                            android.util.Log.d("EnhancedTabGroupView", "handleDrop: Calling refreshDisplay()")
+
                             post {
                                 lastTabIds = emptyList()
                                 refreshDisplay()
@@ -410,13 +387,10 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                     targetId == "ungroup" -> {
                         // Dropped in empty space - remove from island
                         if (currentIsland != null) {
-                            android.util.Log.d(
-                                "EnhancedTabGroupView",
-                                "handleDrop: Ungrouping from island ${currentIsland.id}"
-                            )
+
                             performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                             islandManager.removeTabFromIsland(draggedTabId, currentIsland.id)
-                            android.util.Log.d("EnhancedTabGroupView", "handleDrop: Calling refreshDisplay()")
+
                             post {
                                 lastTabIds = emptyList()
                                 refreshDisplay()
@@ -443,7 +417,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                                 islandManager.removeTabFromIsland(draggedTabId, currentIsland.id)
                             }
                             createIslandAtPosition(draggedTabId, targetId)
-                            android.util.Log.d("EnhancedTabGroupView", "handleDrop: Island creation complete")
+
                         }
                     }
                 }
@@ -471,14 +445,11 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     }
 
     private fun createIslandAtPosition(tabId1: String, tabId2: String) {
-        android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: tabId1=$tabId1, tabId2=$tabId2")
+
         // Check if either tab is already in an island
         val island1 = islandManager.getIslandForTab(tabId1)
         val island2 = islandManager.getIslandForTab(tabId2)
-        android.util.Log.d(
-            "EnhancedTabGroupView",
-            "createIslandAtPosition: island1=${island1?.id}, island2=${island2?.id}"
-        )
+
 
         // Get the positions of both tabs in the current tabs list
         val pos1 = currentTabs.indexOfFirst { it.id == tabId1 }
@@ -489,38 +460,38 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 
         when {
             island1 != null && island2 == null -> {
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Adding tab2 to island1")
+
                 // Tab1 in island, add tab2 to it at the correct position
                 islandManager.addTabToIsland(tabId2, island1.id)
             }
 
             island2 != null && island1 == null -> {
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Adding tab1 to island2")
+
                 // Tab2 in island, add tab1 to it
                 islandManager.addTabToIsland(tabId1, island2.id)
             }
 
             island1 == null && island2 == null -> {
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Creating new island")
+
                 // Neither in island, create new one maintaining order
                 // Create island with tabs in their current order
                 val orderedTabs = if (pos1 < pos2) listOf(tabId1, tabId2) else listOf(tabId2, tabId1)
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: orderedTabs=$orderedTabs")
+
                 islandManager.createIsland(orderedTabs)
             }
 
             island1 != null && island2 != null && island1.id != island2.id -> {
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Merging islands")
+
                 // Both in different islands, merge into island2
                 islandManager.addTabToIsland(tabId1, island2.id)
             }
             // If both in same island, do nothing
             else -> {
-                android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Both in same island, no action")
+
             }
         }
 
-        android.util.Log.d("EnhancedTabGroupView", "createIslandAtPosition: Calling refreshDisplay()")
+
         refreshDisplay()
         showIslandCreatedFeedback()
     }
@@ -845,7 +816,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 
         // Recreate display items from current state
         val displayItems = islandManager.createDisplayItems(currentTabs)
-        android.util.Log.d("EnhancedTabGroupView", "refreshDisplay: Created ${displayItems.size} display items")
+
         lastDisplayItemsCount = displayItems.size
         lastTabIds = currentTabs.map { it.id }
 
@@ -855,7 +826,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         // Update adapter with notifyDataSetChanged to force complete refresh
         tabAdapter.updateDisplayItems(displayItems, selectedTabId)
         tabAdapter.notifyDataSetChanged()
-        android.util.Log.d("EnhancedTabGroupView", "refreshDisplay: Adapter updated")
+
     }
 
     private fun showIslandCreatedFeedback() {

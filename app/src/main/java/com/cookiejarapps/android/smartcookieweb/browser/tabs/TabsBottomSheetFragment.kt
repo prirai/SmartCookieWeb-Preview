@@ -173,7 +173,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 val fromPosition = viewHolder.bindingAdapterPosition
                 val toPosition = target.bindingAdapterPosition
 
-                android.util.Log.d("TabsBottomSheet", "onMove: fromPosition=$fromPosition, toPosition=$toPosition")
+
 
                 if (fromPosition == -1 || toPosition == -1) {
                     return false
@@ -203,7 +203,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
                 if (canDrop) {
                     dropTargetPosition = toPosition
-                    android.util.Log.d("TabsBottomSheet", "onMove: Set dropTargetPosition=$toPosition")
                     // Add haptic feedback and visual confirmation
                     target.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                     target.itemView.animate()
@@ -227,10 +226,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             ): Int {
                 val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
                 val swipeFlags = 0
-                android.util.Log.d(
-                    "TabsBottomSheet",
-                    "getMovementFlags: dragFlags=$dragFlags, swipeFlags=$swipeFlags, viewHolder position=${viewHolder.bindingAdapterPosition}"
-                )
                 return makeMovementFlags(dragFlags, swipeFlags)
             }
 
@@ -254,10 +249,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     }
 
                     ItemTouchHelper.ACTION_STATE_IDLE -> {
-                        android.util.Log.d(
-                            "TabsBottomSheet",
-                            "onSelectedChanged: IDLE, dropTargetPosition=$dropTargetPosition"
-                        )
                         draggedViewHolder?.itemView?.apply {
                             // Reset view
                             animate()
@@ -271,10 +262,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
                         // Handle drag-out-of-island (ungroup) special case
                         if (dropTargetPosition == -999) {
-                            android.util.Log.d(
-                                "TabsBottomSheet",
-                                "onSelectedChanged: IDLE, ungrouping via drag-out"
-                            )
                             handleUngroupDrop(draggedViewHolder)
                             draggedViewHolder = null
                             dropTargetPosition = -1
@@ -287,11 +274,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                             lastHighlightedPosition != -1 -> lastHighlightedPosition
                             else -> findClosestValidDropTarget(draggedViewHolder)
                         }
-
-                        android.util.Log.d(
-                            "TabsBottomSheet",
-                            "onSelectedChanged: IDLE, final targetPosition=$targetPosition (dropTargetPosition was $dropTargetPosition), isDropOnDivider=$isDropOnDivider"
-                        )
 
                         // Handle drop if we have a valid target
                         if (targetPosition != -1) {
@@ -381,15 +363,11 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
                 if (viewHolder is TabIslandsVerticalAdapter.UngroupedHeaderViewHolder) {
                     viewHolder.setDragMode(isDragging)
-                    android.util.Log.d(
-                        "TabsBottomSheet",
-                        "updateUngroupedHeaderDragState: isDragging=$isDragging"
-                    )
                     break
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("TabsBottomSheet", "Error updating ungrouped header state", e)
+            // Silently handle exception
         }
     }
 
@@ -579,11 +557,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     }
 
                     target.foreground = drawable
-
-                    android.util.Log.d(
-                        "TabsBottomSheet",
-                        "highlightDropTargets: Showing divider at position=$highlightedPosition, top=$showTopDivider, bottom=$showBottomDivider"
-                    )
                 } else {
                     // Full highlight for grouping
                     val highlightColor = ContextCompat.getColor(
@@ -598,14 +571,9 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                         .scaleY(1.02f)
                         .setDuration(100)
                         .start()
-
-                    android.util.Log.d(
-                        "TabsBottomSheet",
-                        "highlightDropTargets: Highlighted target at position=$highlightedPosition, distance=$closestDistance"
-                    )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TabsBottomSheet", "Error highlighting target", e)
+                // Silently handle exception
             }
         }
 
@@ -613,7 +581,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun handleDividerDrop(viewHolder: RecyclerView.ViewHolder?, adjacentPosition: Int, isAbove: Boolean) {
-        android.util.Log.d("TabsBottomSheet", "handleDividerDrop: adjacentPosition=$adjacentPosition, isAbove=$isAbove")
         if (viewHolder == null || adjacentPosition == -1) return
 
         val sourcePosition = viewHolder.bindingAdapterPosition
@@ -638,8 +605,6 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             // For now, just ungroup the tab - positioning will be handled by the adapter's natural order
             // In the future, you could implement actual reordering logic here
             updateTabsDisplay()
-
-            android.util.Log.d("TabsBottomSheet", "handleDividerDrop: Tab ungrouped and will be repositioned")
         }
     }
 
@@ -701,23 +666,14 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 if (distance < child.height && distance < closestDistance) {
                     closestDistance = distance
                     closestPosition = position
-                    android.util.Log.d(
-                        "TabsBottomSheet",
-                        "findClosestValidDropTarget: Found closer target at position=$position, distance=$distance"
-                    )
                 }
             }
         }
 
-        android.util.Log.d(
-            "TabsBottomSheet",
-            "findClosestValidDropTarget: Returning closestPosition=$closestPosition"
-        )
         return closestPosition
     }
 
     private fun handleDrop(viewHolder: RecyclerView.ViewHolder?, targetPosition: Int) {
-        android.util.Log.d("TabsBottomSheet", "handleDrop: targetPosition=$targetPosition")
         if (viewHolder == null || targetPosition == -1) return
 
         val sourcePosition = viewHolder.bindingAdapterPosition

@@ -119,14 +119,7 @@ class ModernTabPillAdapter(
     override fun getItemCount(): Int = displayItems.size
 
     fun updateDisplayItems(items: List<TabPillItem>, selectedId: String?) {
-        android.util.Log.d(
-            "ModernTabPillAdapter",
-            "updateDisplayItems: called with ${items.size} items, selectedId=$selectedId"
-        )
-        android.util.Log.d(
-            "ModernTabPillAdapter",
-            "updateDisplayItems: current displayItems.size=${displayItems.size}"
-        )
+
         val oldSelectedId = selectedTabId
         selectedTabId = selectedId
 
@@ -167,21 +160,18 @@ class ModernTabPillAdapter(
 
         // If nothing changed at all, skip update
         if (!itemsChanged && oldSelectedId == selectedId) {
-            android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Nothing changed, skipping update")
+
             return
         }
 
         val oldSize = displayItems.size
-        android.util.Log.d(
-            "ModernTabPillAdapter",
-            "updateDisplayItems: Clearing and updating, oldSize=$oldSize, newSize=${items.size}"
-        )
+
         displayItems.clear()
         displayItems.addAll(items)
 
         when {
             oldSize == 0 && items.isNotEmpty() -> {
-                android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Inserting ${items.size} items")
+
                 notifyItemRangeInserted(0, items.size)
             }
 
@@ -204,15 +194,12 @@ class ModernTabPillAdapter(
             }
 
             else -> {
-                android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Same size, notifying range changed")
+
                 notifyItemRangeChanged(0, items.size)
             }
         }
 
-        android.util.Log.d(
-            "ModernTabPillAdapter",
-            "updateDisplayItems: Complete, final displayItems.size=${displayItems.size}"
-        )
+
     }
 
     private fun areItemsSame(item1: TabPillItem, item2: TabPillItem): Boolean {
