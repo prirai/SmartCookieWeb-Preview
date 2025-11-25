@@ -77,7 +77,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 
         layoutParams = android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            120
+            84 // Reduced by 30% from 120dp
         )
 
         elevation = 2f
@@ -89,82 +89,105 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 
     private fun setupItemTouchHelper() {
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
+            0, // Disable reordering to prevent position changes
             ItemTouchHelper.UP
         ) {
             private var draggedTabId: String? = null
-            private var lastTargetPosition = -1
+            private var lastTargetTabId: String? = null
             private var lastTargetView: View? = null
+            private var dragStartX = 0f
+            private var dragStartY = 0f
 
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
                 target: RecyclerView.ViewHolder
             ): Boolean {
-                val fromPosition = viewHolder.adapterPosition
-                val toPosition = target.adapterPosition
+                // Don't allow reordering - we only want grouping
+                return false
+            }
 
-                // Get the dragged tab
-                val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
+            override fun onChildDraw(
+                c: android.graphics.Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
 
-                // Visual feedback - highlight target
-                if (lastTargetPosition != toPosition) {
-                    // Remove previous highlight
-                    lastTargetView?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(150)?.start()
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
+                    // Get dragged tab
+                    val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
+                    if (draggedTab == null) return
 
-                    // Add new highlight
-                    target.itemView.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.alpha(0.7f)?.setDuration(150)?.start()
-                    lastTargetView = target.itemView
-                    lastTargetPosition = toPosition
-                }
+                    // Calculate center position of dragged item
+                    val draggedView = viewHolder.itemView
+                    val draggedCenterX = draggedView.left + dX + draggedView.width / 2f
+                    val draggedCenterY = draggedView.top + dY + draggedView.height / 2f
 
-                // Handle different target types
-                when (target) {
-                    is ModernTabPillAdapter.TabPillViewHolder -> {
-                        // Dragging onto another tab - instant grouping
-                        if (draggedTab != null && viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
-                            val targetTab = currentTabs.getOrNull(toPosition)
-                            if (targetTab != null && draggedTab.id != targetTab.id) {
-                                // Instant group creation with haptic feedback
-                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                createIslandInstantly(draggedTab.id, targetTab.id)
-                                return false // Don't continue drag after grouping
-                            }
-                        }
-                        return false
-                    }
+                    // Find which view is under the dragged item
+                    var targetView: View? = null
+                    var targetTabId: String? = null
 
-                    is ModernTabPillAdapter.IslandHeaderViewHolder -> {
-                        // Dragging onto island header - add to island
-                        if (draggedTab != null) {
+                    for (i in 0 until recyclerView.childCount) {
+                        val child = recyclerView.getChildAt(i)
+                        if (child == draggedView) continue
+
+                        val childLeft = child.left.toFloat()
+                        val childTop = child.top.toFloat()
+                        val childRight = child.right.toFloat()
+                        val childBottom = child.bottom.toFloat()
+
+                        // Check if dragged item center is over this child
+                        if (draggedCenterX >= childLeft && draggedCenterX <= childRight &&
+                            draggedCenterY >= childTop && draggedCenterY <= childBottom
+                        ) {
+                            val childHolder = recyclerView.getChildViewHolder(child)
                             val displayItems = islandManager.createDisplayItems(currentTabs)
-                            val headerItem = displayItems.getOrNull(toPosition)
-                            if (headerItem is TabPillItem.IslandHeader) {
-                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                islandManager.addTabToIsland(draggedTab.id, headerItem.island.id)
-                                refreshDisplay()
-                                return false
+                            val position = childHolder.adapterPosition
+
+                            if (position >= 0 && position < displayItems.size) {
+                                when (val item = displayItems[position]) {
+                                    is TabPillItem.Tab -> {
+                                        if (item.session.id != draggedTab.id) {
+                                            targetView = child
+                                            targetTabId = item.session.id
+                                        }
+                                    }
+
+                                    is TabPillItem.IslandHeader -> {
+                                        targetView = child
+                                        targetTabId = "island_${item.island.id}"
+                                    }
+
+                                    is TabPillItem.CollapsedIsland -> {
+                                        targetView = child
+                                        targetTabId = "collapsed_${item.island.id}"
+                                    }
+                                }
                             }
+                            break
                         }
-                        return false
                     }
 
-                    is ModernTabPillAdapter.CollapsedIslandViewHolder -> {
-                        // Dragging onto collapsed island - add to island
-                        if (draggedTab != null) {
-                            val displayItems = islandManager.createDisplayItems(currentTabs)
-                            val collapsedItem = displayItems.getOrNull(toPosition)
-                            if (collapsedItem is TabPillItem.CollapsedIsland) {
-                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                islandManager.addTabToIsland(draggedTab.id, collapsedItem.island.id)
-                                refreshDisplay()
-                                return false
-                            }
-                        }
-                        return false
-                    }
+                    // Update visual feedback if target changed
+                    if (targetTabId != lastTargetTabId) {
+                        // Remove previous highlight
+                        lastTargetView?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(100)?.start()
 
-                    else -> return false
+                        // Add new highlight
+                        if (targetView != null) {
+                            targetView.animate()?.scaleX(1.08f)?.scaleY(1.08f)?.alpha(0.7f)?.setDuration(100)?.start()
+                            lastTargetView = targetView
+                            lastTargetTabId = targetTabId
+                        } else {
+                            lastTargetView = null
+                            lastTargetTabId = null
+                        }
+                    }
                 }
             }
 
@@ -199,7 +222,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                             ?.setDuration(150)
                             ?.start()
 
-                        // Store dragged tab ID
+                        // Store dragged tab ID and start position
                         if (viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
                             val displayItems = islandManager.createDisplayItems(currentTabs)
                             val position = viewHolder.adapterPosition
@@ -207,6 +230,8 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                                 val item = displayItems[position]
                                 if (item is TabPillItem.Tab) {
                                     draggedTabId = item.session.id
+                                    dragStartX = viewHolder.itemView.x
+                                    dragStartY = viewHolder.itemView.y
                                     performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                 }
                             }
@@ -214,9 +239,15 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                     }
 
                     ItemTouchHelper.ACTION_STATE_IDLE -> {
+                        // Check if we should create an island based on final position
+                        val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
+                        if (draggedTab != null && lastTargetTabId != null) {
+                            handleDrop(draggedTab.id, lastTargetTabId!!)
+                        }
+
                         // Clear drag state
                         draggedTabId = null
-                        lastTargetPosition = -1
+                        lastTargetTabId = null
                         lastTargetView = null
                     }
                 }
@@ -239,11 +270,32 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                     ?.alpha(1f)
                     ?.setDuration(200)
                     ?.start()
+            }
 
-                // Clear state
-                draggedTabId = null
-                lastTargetPosition = -1
-                lastTargetView = null
+            private fun handleDrop(draggedTabId: String, targetId: String) {
+                when {
+                    targetId.startsWith("island_") -> {
+                        // Dropped on island header
+                        val islandId = targetId.removePrefix("island_")
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        islandManager.addTabToIsland(draggedTabId, islandId)
+                        refreshDisplay()
+                    }
+
+                    targetId.startsWith("collapsed_") -> {
+                        // Dropped on collapsed island
+                        val islandId = targetId.removePrefix("collapsed_")
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        islandManager.addTabToIsland(draggedTabId, islandId)
+                        refreshDisplay()
+                    }
+
+                    else -> {
+                        // Dropped on another tab - create island
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        createIslandAtPosition(draggedTabId, targetId)
+                    }
+                }
             }
 
             override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
@@ -267,14 +319,21 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         itemTouchHelper.attachToRecyclerView(this)
     }
 
-    private fun createIslandInstantly(tabId1: String, tabId2: String) {
+    private fun createIslandAtPosition(tabId1: String, tabId2: String) {
         // Check if either tab is already in an island
         val island1 = islandManager.getIslandForTab(tabId1)
         val island2 = islandManager.getIslandForTab(tabId2)
 
+        // Get the positions of both tabs in the current tabs list
+        val pos1 = currentTabs.indexOfFirst { it.id == tabId1 }
+        val pos2 = currentTabs.indexOfFirst { it.id == tabId2 }
+
+        // Determine the insert position (where the target tab is)
+        val insertPosition = minOf(pos1, pos2)
+
         when {
             island1 != null && island2 == null -> {
-                // Tab1 in island, add tab2 to it
+                // Tab1 in island, add tab2 to it at the correct position
                 islandManager.addTabToIsland(tabId2, island1.id)
             }
 
@@ -284,8 +343,10 @@ class EnhancedTabGroupView @JvmOverloads constructor(
             }
 
             island1 == null && island2 == null -> {
-                // Neither in island, create new one
-                islandManager.createIsland(listOf(tabId1, tabId2))
+                // Neither in island, create new one maintaining order
+                // Create island with tabs in their current order
+                val orderedTabs = if (pos1 < pos2) listOf(tabId1, tabId2) else listOf(tabId2, tabId1)
+                islandManager.createIsland(orderedTabs)
             }
 
             island1 != null && island2 != null && island1.id != island2.id -> {

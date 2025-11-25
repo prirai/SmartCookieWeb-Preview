@@ -272,17 +272,24 @@ class TabIslandManager(private val context: Context) {
 
     /**
      * Converts tabs list to display items with island information
+     * Maintains the original tab order - islands appear where their first tab was
      */
     fun createDisplayItems(tabs: List<SessionState>): List<TabPillItem> {
         val displayItems = mutableListOf<TabPillItem>()
         val processedIslands = mutableSetOf<String>()
-        val ungroupedTabs = mutableListOf<SessionState>()
+        val processedTabs = mutableSetOf<String>()
 
+        // Process tabs in their original order
         tabs.forEach { tab ->
+            // Skip if we already added this tab as part of an island
+            if (processedTabs.contains(tab.id)) {
+                return@forEach
+            }
+
             val islandId = tabToIslandMap[tab.id]
 
             if (islandId != null && !processedIslands.contains(islandId)) {
-                // This tab is in an island that we haven't processed yet
+                // First tab of an island - add the island here
                 val island = islands[islandId]
                 if (island != null) {
                     processedIslands.add(islandId)
@@ -299,7 +306,7 @@ class TabIslandManager(private val context: Context) {
                         // Show island header followed by tabs
                         displayItems.add(TabPillItem.IslandHeader(island, false))
 
-                        // Add all tabs in this island in order
+                        // Add all tabs in this island, maintaining their order within the island
                         island.tabIds.forEachIndexed { index, tabId ->
                             val tabSession = tabs.find { it.id == tabId }
                             if (tabSession != null) {
@@ -312,20 +319,19 @@ class TabIslandManager(private val context: Context) {
                                         isLast = index == island.tabIds.size - 1
                                     )
                                 )
+                                processedTabs.add(tabId)
                             }
                         }
                     }
+
+                    // Mark all island tabs as processed
+                    island.tabIds.forEach { processedTabs.add(it) }
                 }
             } else if (islandId == null) {
-                // Tab is not in any island
-                ungroupedTabs.add(tab)
+                // Tab is not in any island - add it in its original position
+                displayItems.add(TabPillItem.Tab(session = tab))
+                processedTabs.add(tab.id)
             }
-            // Skip tabs we already added as part of an island
-        }
-
-        // Add ungrouped tabs at the end
-        ungroupedTabs.forEach { tab ->
-            displayItems.add(TabPillItem.Tab(session = tab))
         }
 
         return displayItems
