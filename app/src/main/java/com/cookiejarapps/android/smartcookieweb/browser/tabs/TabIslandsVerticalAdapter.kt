@@ -405,7 +405,7 @@ class TabIslandsVerticalAdapter(
                 var startY: Float = 0f
                 val longPressThreshold = 500L // milliseconds
                 val moveThreshold = 20f // pixels
-                
+
                 itemView.setOnTouchListener { view, event ->
                     when (event.action) {
                         android.view.MotionEvent.ACTION_DOWN -> {
@@ -414,6 +414,7 @@ class TabIslandsVerticalAdapter(
                             startY = event.y
                             false // Allow drag to take precedence
                         }
+
                         android.view.MotionEvent.ACTION_MOVE -> {
                             val deltaX = kotlin.math.abs(event.x - startX)
                             val deltaY = kotlin.math.abs(event.y - startY)
@@ -423,11 +424,12 @@ class TabIslandsVerticalAdapter(
                             }
                             false
                         }
+
                         android.view.MotionEvent.ACTION_UP -> {
                             val duration = System.currentTimeMillis() - startTime
                             val deltaX = kotlin.math.abs(event.x - startX)
                             val deltaY = kotlin.math.abs(event.y - startY)
-                            
+
                             // Only trigger long press if held long enough without significant movement
                             if (duration >= longPressThreshold && deltaX < moveThreshold && deltaY < moveThreshold) {
                                 onUngroupedTabLongPress(tab.id)
@@ -435,6 +437,7 @@ class TabIslandsVerticalAdapter(
                             }
                             false
                         }
+
                         else -> false
                     }
                 }
@@ -448,8 +451,19 @@ class TabIslandsVerticalAdapter(
 
         fun bind() {
             titleText.text = itemView.context.getString(R.string.ungrouped_tabs)
+            titleText.setTextColor(itemView.context.getColor(android.R.color.white))
             // Accessibility
             itemView.contentDescription = itemView.context.getString(R.string.ungrouped_tabs_header_description)
+        }
+
+        fun setDragMode(isDragging: Boolean) {
+            if (isDragging) {
+                titleText.text = "UNGROUP"
+                titleText.setTextColor(itemView.context.getColor(android.R.color.holo_red_light))
+            } else {
+                titleText.text = itemView.context.getString(R.string.ungrouped_tabs)
+                titleText.setTextColor(itemView.context.getColor(android.R.color.white))
+            }
         }
     }
 }

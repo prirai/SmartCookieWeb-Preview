@@ -159,6 +159,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             private var draggedViewHolder: RecyclerView.ViewHolder? = null
             private var dropTargetPosition: Int = -1
             private var lastHighlightedPosition: Int = -1
+            private var isDropOnDivider: Boolean = false
+            private var isDividerAbove: Boolean = false
 
             override fun onMove(
                 recyclerView: RecyclerView,
@@ -285,17 +287,26 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
                         android.util.Log.d(
                             "TabsBottomSheet",
-                            "onSelectedChanged: IDLE, final targetPosition=$targetPosition (dropTargetPosition was $dropTargetPosition)"
+                            "onSelectedChanged: IDLE, final targetPosition=$targetPosition (dropTargetPosition was $dropTargetPosition), isDropOnDivider=$isDropOnDivider"
                         )
 
                         // Handle drop if we have a valid target
                         if (targetPosition != -1) {
-                            handleDrop(draggedViewHolder, targetPosition)
+                            if (isDropOnDivider) {
+                                handleDividerDrop(draggedViewHolder, targetPosition, isDividerAbove)
+                            } else {
+                                handleDrop(draggedViewHolder, targetPosition)
+                            }
                         }
 
                         draggedViewHolder = null
                         dropTargetPosition = -1
                         lastHighlightedPosition = -1
+                        isDropOnDivider = false
+                        isDividerAbove = false
+
+                        // Reset ungrouped header appearance
+                        updateUngroupedHeaderDragState(binding.tabsRecyclerView, false)
                     }
                 }
             }
@@ -337,9 +348,16 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             ) {
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
                     // Highlight drop targets and track position
-                    lastHighlightedPosition = highlightDropTargets(recyclerView, viewHolder, dY)
+                    val result = highlightDropTargets(recyclerView, viewHolder, dY)
+                    lastHighlightedPosition = result.position
+                    isDropOnDivider = result.isDivider
+                    isDividerAbove = result.isDividerAbove
 
-                    // Drag-out detection is removed - use visual target detection instead
+                    // Set "UNGROUP" mode on ungrouped header during drag
+                    updateUngroupedHeaderDragState(recyclerView, true)
+                } else {
+                    // Reset ungrouped header when not dragging
+                    updateUngroupedHeaderDragState(recyclerView, false)
                 }
 
                 super.onChildDraw(canvas, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
@@ -352,19 +370,45 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         itemTouchHelper?.attachToRecyclerView(binding.tabsRecyclerView)
     }
 
+    private fun updateUngroupedHeaderDragState(recyclerView: RecyclerView, isDragging: Boolean) {
+        try {
+            for (i in 0 until recyclerView.childCount) {
+                val child = recyclerView.getChildAt(i) ?: continue
+                val viewHolder = recyclerView.getChildViewHolder(child) ?: continue
+
+                if (viewHolder is TabIslandsVerticalAdapter.UngroupedHeaderViewHolder) {
+                    viewHolder.setDragMode(isDragging)
+                    android.util.Log.d(
+                        "TabsBottomSheet",
+                        "updateUngroupedHeaderDragState: isDragging=$isDragging"
+                    )
+                    break
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TabsBottomSheet", "Error updating ungrouped header state", e)
+        }
+    }
+
+    data class DropTargetResult(
+        val position: Int,
+        val isDivider: Boolean,
+        val isDividerAbove: Boolean
+    )
+
     private fun highlightDropTargets(
         recyclerView: RecyclerView,
         draggedViewHolder: RecyclerView.ViewHolder,
         dY: Float
-    ): Int {
+    ): DropTargetResult {
         val draggedPosition = draggedViewHolder.bindingAdapterPosition
-        if (draggedPosition == -1) return -1
+        if (draggedPosition == -1) return DropTargetResult(-1, false, false)
 
         val draggedItem = tabsAdapter.getItemAt(draggedPosition)
         if (draggedItem !is TabIslandsVerticalAdapter.ListItem.TabInIsland &&
             draggedItem !is TabIslandsVerticalAdapter.ListItem.UngroupedTab
         ) {
-            return -1
+            return DropTargetResult(-1, false, false)
         }
 
         // Calculate drag position
@@ -375,6 +419,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         var closestTarget: View? = null
         var closestDistance = Float.MAX_VALUE
         var highlightedPosition = -1
+        var showTopDivider = false
+        var showBottomDivider = false
 
         for (i in 0 until recyclerView.childCount) {
             val child = recyclerView.getChildAt(i) ?: continue
@@ -397,8 +443,16 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             val canBeTarget = when (item) {
                 is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> true
                 is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> true
-                is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> true
-                is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> true
+                is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> {
+                    // Only ungroup if coming from island
+                    draggedItem is TabIslandsVerticalAdapter.ListItem.TabInIsland
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> {
+                    // Allow any tab to group with ungrouped tabs
+                    true
+                }
+
                 is TabIslandsVerticalAdapter.ListItem.TabInIsland -> true
                 else -> false
             }
@@ -410,53 +464,180 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 // View might be in invalid state
             }
 
-            if (canBeTarget && distance < child.height && distance < closestDistance) {
-                closestTarget = child
-                closestDistance = distance
-                highlightedPosition = position
+            if (canBeTarget && distance < child.height) {
+                // Check for divider-based drop (70-30 split for ungrouped tabs)
+                val isUngroupedTab = item is TabIslandsVerticalAdapter.ListItem.UngroupedTab
+
+                if (isUngroupedTab) {
+                    val relativeY = draggedCenterY - child.top
+                    val topZone = child.height * 0.3f
+                    val bottomZone = child.height * 0.7f
+
+                    // Prioritize divider zones over center grouping zone
+                    val dividerDistance = if (relativeY < topZone) {
+                        relativeY // Distance to top edge
+                    } else if (relativeY > bottomZone) {
+                        child.height - relativeY // Distance to bottom edge
+                    } else {
+                        Float.MAX_VALUE // In grouping zone
+                    }
+
+                    if (dividerDistance < closestDistance) {
+                        closestTarget = child
+                        closestDistance = dividerDistance
+                        highlightedPosition = position
+                        showTopDivider = relativeY < topZone
+                        showBottomDivider = relativeY > bottomZone
+                    } else if (dividerDistance == Float.MAX_VALUE && distance < closestDistance) {
+                        // Grouping zone (center)
+                        closestTarget = child
+                        closestDistance = distance
+                        highlightedPosition = position
+                        showTopDivider = false
+                        showBottomDivider = false
+                    }
+                } else {
+                    // Non-ungrouped items - use normal distance
+                    if (distance < closestDistance) {
+                        closestTarget = child
+                        closestDistance = distance
+                        highlightedPosition = position
+                        showTopDivider = false
+                        showBottomDivider = false
+                    }
+                }
             }
 
 
+        }
+
+        // Reset all backgrounds first
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            if (child != null && child != itemView) {
+                try {
+                    child.background = null
+                    child.foreground = null
+                    child.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .setDuration(100)
+                        .start()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
         }
 
         // Highlight the closest valid drop target
         closestTarget?.let { target ->
             try {
-                val highlightColor = ContextCompat.getColor(
-                    requireContext(),
-                    android.R.color.holo_blue_light
-                )
-                target.setBackgroundColor(highlightColor)
+                if (showTopDivider || showBottomDivider) {
+                    // Show divider line at top or bottom edge
+                    val dividerColor = ContextCompat.getColor(
+                        requireContext(),
+                        android.R.color.holo_blue_light
+                    )
 
-                // Add visual feedback to indicate successful drop zone
-                target.animate()
-                    .scaleX(1.02f)
-                    .scaleY(1.02f)
-                    .setDuration(100)
-                    .start()
+                    // Create a drawable that shows a thick line at top or bottom
+                    val dividerHeight = 8 // dp
+                    val dividerHeightPx =
+                        (dividerHeight * recyclerView.context.resources.displayMetrics.density).toInt()
 
-                // Reset other items
-                for (i in 0 until recyclerView.childCount) {
-                    val child = recyclerView.getChildAt(i)
-                    if (child != null && child != target && child != itemView) {
-                        child.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(100)
-                            .start()
+                    val drawable = object : android.graphics.drawable.Drawable() {
+                        override fun draw(canvas: Canvas) {
+                            val paint = android.graphics.Paint().apply {
+                                color = dividerColor
+                                style = android.graphics.Paint.Style.FILL
+                            }
+
+                            if (showTopDivider) {
+                                canvas.drawRect(
+                                    0f,
+                                    0f,
+                                    bounds.width().toFloat(),
+                                    dividerHeightPx.toFloat(),
+                                    paint
+                                )
+                            } else if (showBottomDivider) {
+                                canvas.drawRect(
+                                    0f,
+                                    bounds.height() - dividerHeightPx.toFloat(),
+                                    bounds.width().toFloat(),
+                                    bounds.height().toFloat(),
+                                    paint
+                                )
+                            }
+                        }
+
+                        override fun setAlpha(alpha: Int) {}
+                        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
+                        override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
                     }
-                }
 
-                android.util.Log.d(
-                    "TabsBottomSheet",
-                    "highlightDropTargets: Highlighted target at position=$highlightedPosition, distance=$closestDistance"
-                )
+                    target.foreground = drawable
+
+                    android.util.Log.d(
+                        "TabsBottomSheet",
+                        "highlightDropTargets: Showing divider at position=$highlightedPosition, top=$showTopDivider, bottom=$showBottomDivider"
+                    )
+                } else {
+                    // Full highlight for grouping
+                    val highlightColor = ContextCompat.getColor(
+                        requireContext(),
+                        android.R.color.holo_blue_light
+                    )
+                    target.setBackgroundColor(highlightColor)
+
+                    // Add visual feedback to indicate successful drop zone
+                    target.animate()
+                        .scaleX(1.02f)
+                        .scaleY(1.02f)
+                        .setDuration(100)
+                        .start()
+
+                    android.util.Log.d(
+                        "TabsBottomSheet",
+                        "highlightDropTargets: Highlighted target at position=$highlightedPosition, distance=$closestDistance"
+                    )
+                }
             } catch (e: Exception) {
                 android.util.Log.e("TabsBottomSheet", "Error highlighting target", e)
             }
         }
 
-        return highlightedPosition
+        return DropTargetResult(highlightedPosition, showTopDivider || showBottomDivider, showTopDivider)
+    }
+
+    private fun handleDividerDrop(viewHolder: RecyclerView.ViewHolder?, adjacentPosition: Int, isAbove: Boolean) {
+        android.util.Log.d("TabsBottomSheet", "handleDividerDrop: adjacentPosition=$adjacentPosition, isAbove=$isAbove")
+        if (viewHolder == null || adjacentPosition == -1) return
+
+        val sourcePosition = viewHolder.bindingAdapterPosition
+        if (sourcePosition == -1) return
+
+        val sourceItem = tabsAdapter.getItemAt(sourcePosition)
+
+        // Extract tab ID from source
+        val tabId = when (sourceItem) {
+            is TabIslandsVerticalAdapter.ListItem.TabInIsland -> sourceItem.tab.id
+            is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> sourceItem.tab.id
+            else -> return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Remove from current island if in one
+            val currentIsland = islandManager.getIslandForTab(tabId)
+            if (currentIsland != null) {
+                islandManager.removeTabFromIsland(tabId, currentIsland.id)
+            }
+
+            // For now, just ungroup the tab - positioning will be handled by the adapter's natural order
+            // In the future, you could implement actual reordering logic here
+            updateTabsDisplay()
+
+            android.util.Log.d("TabsBottomSheet", "handleDividerDrop: Tab ungrouped and will be repositioned")
+        }
     }
 
     private fun findClosestValidDropTarget(draggedViewHolder: RecyclerView.ViewHolder?): Int {
@@ -501,8 +682,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 }
 
                 is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> {
-                    // Allow grouping ungrouped tabs together
-                    draggedItem is TabIslandsVerticalAdapter.ListItem.UngroupedTab
+                    // Allow any tab to group with ungrouped tabs
+                    true
                 }
 
                 is TabIslandsVerticalAdapter.ListItem.TabInIsland -> true
@@ -573,15 +754,24 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 }
 
                 is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> {
-                    // Dragged ungrouped tab onto another ungrouped tab - create island
+                    // Any tab dropped on ungrouped tab - create island
                     val targetTabId = targetItem.tab.id
-                    if (sourceItem is TabIslandsVerticalAdapter.ListItem.UngroupedTab) {
-                        val sourceTabId = sourceItem.tab.id
-                        if (sourceTabId != targetTabId) {
-                            // Create island with both tabs
-                            islandManager.createIsland(listOf(sourceTabId, targetTabId))
-                            updateTabsDisplay()
+                    val sourceTabId = when (sourceItem) {
+                        is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> sourceItem.tab.id
+                        is TabIslandsVerticalAdapter.ListItem.TabInIsland -> sourceItem.tab.id
+                        else -> return@launch
+                    }
+
+                    if (sourceTabId != targetTabId) {
+                        // If source is in an island, remove it first
+                        val currentIsland = islandManager.getIslandForTab(sourceTabId)
+                        if (currentIsland != null) {
+                            islandManager.removeTabFromIsland(sourceTabId, currentIsland.id)
                         }
+
+                        // Create island with both tabs
+                        islandManager.createIsland(listOf(sourceTabId, targetTabId))
+                        updateTabsDisplay()
                     }
                 }
 
