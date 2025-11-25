@@ -102,17 +102,10 @@ data class TabIsland(
         )
 
         /**
-         * Generates a default name for an island based on its index
+         * Generates a default name for an island based on its index.
+         * Returns blank string - islands are identified by internal ID only.
          */
-        fun generateDefaultName(index: Int): String = when (index) {
-            0 -> "Work"
-            1 -> "Personal"
-            2 -> "Shopping"
-            3 -> "Research"
-            4 -> "Entertainment"
-            5 -> "Social"
-            else -> "Group ${index + 1}"
-        }
+        fun generateDefaultName(index: Int): String = ""
 
         /**
          * Creates a new island with generated defaults

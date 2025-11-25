@@ -40,32 +40,19 @@ data class TabGroupWithTabs(
 }
 
 /**
- * Generates randomized 2-character group names as requested.
- * Format: [a-z][0-9] (e.g., "a1", "b2", "z9")
+ * Tab group name generator that returns blank names.
+ * Groups are identified internally by their UUID, but display no name by default.
  */
 class TabGroupNameGenerator {
-    private val usedNames = mutableSetOf<String>()
-    
+    /**
+     * Returns an empty string as the default group name.
+     * Groups have internal IDs (UUIDs) for identification.
+     */
     fun generateName(): String {
-        val alphabet = 'a'..'z'
-        val numbers = 0..9
-        
-        // Try to find an unused name
-        for (letter in alphabet) {
-            for (number in numbers) {
-                val name = "$letter$number"
-                if (name !in usedNames) {
-                    usedNames.add(name)
-                    return name
-                }
-            }
-        }
-        
-        // If all combinations are used, start with random UUIDs (fallback)
-        return UUID.randomUUID().toString().substring(0, 2)
+        return ""
     }
-    
+
     fun releaseName(name: String) {
-        usedNames.remove(name)
+        // No-op since we don't track blank names
     }
 }

@@ -22,14 +22,17 @@ import mozilla.components.support.base.observer.Observable
 import mozilla.components.support.ktx.android.content.getColorFromAttr
 
 class TabListViewHolder(
-        itemView: View
+    itemView: View
 ) : TabViewHolder(itemView) {
     @VisibleForTesting
     internal val iconView: ImageView? = itemView.findViewById(R.id.mozac_browser_tabstray_icon)
+
     @VisibleForTesting
     internal val titleView: TextView = itemView.findViewById(R.id.mozac_browser_tabstray_title)
+
     @VisibleForTesting
     internal val closeView: AppCompatImageButton = itemView.findViewById(R.id.mozac_browser_tabstray_close)
+
     @VisibleForTesting
     internal val groupIndicator: TextView? = itemView.findViewById(R.id.tabGroupIndicator)
 
@@ -100,9 +103,9 @@ class TabListViewHolder(
     }
 
     private fun updateSelectedTabIndicator(
-        showAsSelected: Boolean, 
-        isFirst: Boolean, 
-        isLast: Boolean, 
+        showAsSelected: Boolean,
+        isFirst: Boolean,
+        isLast: Boolean,
         isSingle: Boolean
     ) {
         if (showAsSelected) {
@@ -115,8 +118,9 @@ class TabListViewHolder(
     @VisibleForTesting
     internal fun showItemAsSelected(isFirst: Boolean = false, isLast: Boolean = false, isSingle: Boolean = false) {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        
+        closeView.imageTintList =
+            ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+
         val backgroundResource = when {
             isSingle -> R.drawable.tab_list_single_selected_background
             isFirst -> R.drawable.tab_list_first_selected_background
@@ -129,8 +133,9 @@ class TabListViewHolder(
     @VisibleForTesting
     internal fun showItemAsNotSelected(isFirst: Boolean = false, isLast: Boolean = false, isSingle: Boolean = false) {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
-        
+        closeView.imageTintList =
+            ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+
         val backgroundResource = when {
             isSingle -> R.drawable.tab_list_single_unselected_background
             isFirst -> R.drawable.tab_list_first_unselected_with_top_background
@@ -146,8 +151,9 @@ class TabListViewHolder(
                 try {
                     val tabGroupManager = itemView.context.components.tabGroupManager
                     val groupName = tabGroupManager.getGroupNameForTab(tabId)
-                    
-                    if (groupName != null) {
+
+                    // Only show indicator if group name is not null and not blank
+                    if (groupName != null && groupName.isNotBlank()) {
                         indicator.text = groupName
                         indicator.isVisible = true
                     } else {

@@ -408,6 +408,7 @@ class ModernTabPillAdapter(
         private val containerCard: CardView = itemView.findViewById(R.id.islandHeaderCard)
 
         fun bind(island: TabIsland) {
+            // Keep name blank if not set
             nameText.text = island.name
             colorIndicator.setBackgroundColor(island.color)
 
@@ -454,6 +455,7 @@ class ModernTabPillAdapter(
         private val containerCard: CardView = itemView.findViewById(R.id.collapsedIslandCard)
 
         fun bind(island: TabIsland, tabCount: Int) {
+            // Keep name blank if not set
             nameText.text = island.name
             tabCountText.text = "$tabCount"
 
@@ -506,6 +508,7 @@ class ModernTabPillAdapter(
         private val groupCard: CardView = itemView.findViewById(R.id.islandGroupCard)
 
         fun bind(island: TabIsland, tabs: List<SessionState>) {
+            // Keep name blank if not set
             nameText.text = island.name
             colorIndicator.setBackgroundColor(island.color)
 

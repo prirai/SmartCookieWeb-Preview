@@ -135,11 +135,24 @@ class TabIslandManager(private val context: Context) {
     }
 
     /**
-     * Toggles the collapse state of an island
+     * Toggles the collapse state of an island.
+     * When expanding an island, all other islands are collapsed to maintain single-expand behavior.
      */
     fun toggleIslandCollapse(islandId: String): Boolean {
         val island = islands[islandId] ?: return false
-        islands[islandId] = island.withCollapsed(!island.isCollapsed)
+        val newCollapsedState = !island.isCollapsed
+
+        // If expanding this island, collapse all others
+        if (!newCollapsedState) {
+            // Collapse all other islands
+            islands.forEach { (otherId, otherIsland) ->
+                if (otherId != islandId && !otherIsland.isCollapsed) {
+                    islands[otherId] = otherIsland.withCollapsed(true)
+                }
+            }
+        }
+
+        islands[islandId] = island.withCollapsed(newCollapsedState)
         saveIslands()
         return true
     }
@@ -155,10 +168,18 @@ class TabIslandManager(private val context: Context) {
     }
 
     /**
-     * Expands an island
+     * Expands an island and collapses all others to maintain single-expand behavior.
      */
     fun expandIsland(islandId: String): Boolean {
         val island = islands[islandId] ?: return false
+
+        // Collapse all other islands when expanding this one
+        islands.forEach { (otherId, otherIsland) ->
+            if (otherId != islandId && !otherIsland.isCollapsed) {
+                islands[otherId] = otherIsland.withCollapsed(true)
+            }
+        }
+
         islands[islandId] = island.withCollapsed(false)
         saveIslands()
         return true

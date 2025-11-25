@@ -574,7 +574,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         val island = islandManager.getIsland(islandId) ?: return
 
         val dialog = android.app.AlertDialog.Builder(context)
-            .setTitle(island.name)
+            .setTitle(island.name.ifBlank { " " })
             .setItems(
                 arrayOf(
                     "Rename Island",
@@ -598,7 +598,8 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         val island = islandManager.getIsland(islandId) ?: return
 
         val input = android.widget.EditText(context).apply {
-            setText(island.name)
+            setText(if (island.name.isBlank()) "" else island.name)
+            hint = "Enter group name"
             selectAll()
         }
 
