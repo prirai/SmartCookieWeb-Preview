@@ -528,8 +528,10 @@
   <string name="delete_confirm_title">Confirm Delete</string>
 
   <!-- Tab Islands -->
+  <string name="tab_island_name">Tab Island</string>
   <string name="tab_island_create">Create Tab Island</string>
   <string name="tab_island_rename">Rename Island</string>
+  <string name="tab_island_delete">Delete Island</string>
   <string name="tab_island_ungroup">Ungroup All Tabs</string>
   <string name="tab_island_close_all">Close All Tabs</string>
   <string name="tab_island_collapse">Collapse Island</string>
@@ -554,5 +556,36 @@
   <string name="ungrouped_tabs">Ungrouped Tabs</string>
   <string name="expand_collapse">Expand/Collapse</string>
   <string name="tab_thumbnail">Tab thumbnail</string>
+  <string name="tab_island_collapsed">Collapsed</string>
+  <string name="tab_island_expanded">Expanded</string>
+
+  <!-- Accessibility descriptions -->
+  <string name="drag_handle_description">Drag to resize bottom sheet</string>
+  <string name="tabs_list_description">List of open tabs</string>
+  <string
+        name="collapsed_island_description"
+    >Collapsed island %1$s with %2$d tabs, tap to expand</string>
+  <string
+        name="expanded_island_description"
+    >Expanded island %1$s with %2$d tabs, tap to collapse</string>
+  <string name="collapse_island_button">Collapse island</string>
+  <string name="tab_in_island_description">in %1$s island</string>
+  <string name="selected_tab_description">Selected tab: %1$s, %2$s %3$s</string>
+  <string name="tab_description">Tab: %1$s, %2$s %3$s</string>
+  <string name="close_tab_button">Close %1$s</string>
+  <string
+        name="ungrouped_tabs_header_description"
+    >Ungrouped tabs section</string>
+
+  <!-- Drag and drop -->
+  <string name="drop_tab_to_island">Drop tab here to add to island</string>
+  <string
+        name="drop_tab_to_ungroup"
+    >Drop tab here to remove from island</string>
+
+  <!-- Delete confirmation -->
+  <string
+        name="delete_island_confirmation"
+    >Delete this island and ungroup %1$d tabs?</string>
 
 </resources>

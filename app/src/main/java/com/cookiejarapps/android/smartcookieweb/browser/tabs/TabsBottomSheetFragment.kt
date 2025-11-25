@@ -1,9 +1,12 @@
 package com.cookiejarapps.android.smartcookieweb.browser.tabs
 
+import android.animation.ValueAnimator
+import android.graphics.Canvas
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -13,20 +16,19 @@ import com.cookiejarapps.android.smartcookieweb.BrowserActivity
 import com.cookiejarapps.android.smartcookieweb.R
 import com.cookiejarapps.android.smartcookieweb.browser.BrowsingMode
 import com.cookiejarapps.android.smartcookieweb.browser.BrowsingModeManager
-import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupManager
-import com.cookiejarapps.android.smartcookieweb.browser.tabgroups.TabGroupWithTabs
+import com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.TabIsland
+import com.cookiejarapps.android.smartcookieweb.components.toolbar.modern.TabIslandManager
 import com.cookiejarapps.android.smartcookieweb.databinding.FragmentTabsBottomSheetBinding
 import com.cookiejarapps.android.smartcookieweb.ext.components
-import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.launch
 import mozilla.components.browser.state.state.TabSessionState
-import mozilla.components.browser.thumbnails.loader.ThumbnailLoader
 
 /**
- * Modern bottom sheet dialog for managing tabs with tab groups support
- * Features: collapsing/expanding groups, drag-and-drop tabs between groups
+ * Modern bottom sheet dialog for managing tabs with tab islands support
+ * Shows tab islands in vertical layout similar to toolbar but stacked vertically
+ * Supports drag-and-drop for organizing tabs into islands
  */
 class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -35,9 +37,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
     private lateinit var browsingModeManager: BrowsingModeManager
     private lateinit var configuration: Configuration
-    private lateinit var tabsAdapter: TabsWithGroupsAdapter
-    private lateinit var tabGroupManager: TabGroupManager
+    private lateinit var tabsAdapter: TabIslandsVerticalAdapter
+    private lateinit var islandManager: TabIslandManager
     private var isInitializing = true
+    private var itemTouchHelper: ItemTouchHelper? = null
 
     companion object {
         const val TAG = "TabsBottomSheetFragment"
@@ -56,9 +59,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        tabGroupManager = requireContext().components.tabGroupManager
+        islandManager = TabIslandManager.getInstance(requireContext())
         setupUI()
         setupTabsAdapter()
+        setupDragAndDrop()
         updateTabsDisplay()
     }
 
@@ -100,8 +104,9 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         )
 
         // Setup new tab button
-        binding.newTabButton.setOnClickListener {
-            addNewTab()
+        binding.newTabButton.apply {
+            setOnClickListener { addNewTab() }
+            contentDescription = getString(R.string.new_tab)
         }
 
         // Setup tab mode toggle
@@ -118,36 +123,242 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
+
+        // Add content descriptions for accessibility
+        binding.tabModeToggle.getTabAt(0)?.contentDescription = getString(R.string.tabs_normal)
+        binding.tabModeToggle.getTabAt(1)?.contentDescription = getString(R.string.tabs_private)
+        binding.dragHandle.contentDescription = getString(R.string.drag_handle_description)
     }
 
     private fun setupTabsAdapter() {
-        val thumbnailLoader = ThumbnailLoader(requireContext().components.thumbnailStorage)
-
-        tabsAdapter = TabsWithGroupsAdapter(
+        tabsAdapter = TabIslandsVerticalAdapter(
             context = requireContext(),
-            thumbnailLoader = thumbnailLoader,
             onTabClick = { tabId -> selectTab(tabId) },
             onTabClose = { tabId -> closeTab(tabId) },
-            onGroupExpand = { groupId -> toggleGroupExpanded(groupId) },
-            onTabMovedToGroup = { tabId, targetGroupId -> moveTabToGroup(tabId, targetGroupId) },
-            onTabRemovedFromGroup = { tabId -> removeTabFromGroup(tabId) }
+            onIslandHeaderClick = { islandId -> toggleIslandExpanded(islandId) },
+            onIslandLongPress = { islandId -> showIslandOptions(islandId) },
+            onUngroupedTabLongPress = { tabId -> showUngroupedTabOptions(tabId) }
         )
 
-        binding.tabsRecyclerView.adapter = tabsAdapter
-        binding.tabsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-        binding.tabsRecyclerView.isNestedScrollingEnabled = true
-        binding.tabsRecyclerView.setHasFixedSize(false)
+        binding.tabsRecyclerView.apply {
+            adapter = tabsAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+            isNestedScrollingEnabled = true
+            setHasFixedSize(false)
+            contentDescription = getString(R.string.tabs_list_description)
+        }
+    }
 
-        // Setup drag and drop
-        val itemTouchHelper = ItemTouchHelper(TabDragCallback(tabsAdapter))
-        itemTouchHelper.attachToRecyclerView(binding.tabsRecyclerView)
+    private fun setupDragAndDrop() {
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            private var draggedViewHolder: RecyclerView.ViewHolder? = null
+            private var dropTargetPosition: Int = -1
 
-        // Observe tab groups changes
-        viewLifecycleOwner.lifecycleScope.launch {
-            tabGroupManager.allGroups.collect {
-                updateTabsDisplay()
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val fromPosition = viewHolder.bindingAdapterPosition
+                val toPosition = target.bindingAdapterPosition
+
+                if (fromPosition == -1 || toPosition == -1) return false
+
+                // Get the items being moved
+                val fromItem = tabsAdapter.getItemAt(fromPosition)
+                val toItem = tabsAdapter.getItemAt(toPosition)
+
+                // Only allow moving tabs (not headers or collapsed islands)
+                if (fromItem !is TabIslandsVerticalAdapter.ListItem.TabInIsland &&
+                    fromItem !is TabIslandsVerticalAdapter.ListItem.UngroupedTab
+                ) {
+                    return false
+                }
+
+                dropTargetPosition = toPosition
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                // Not implementing swipe
+            }
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+
+                when (actionState) {
+                    ItemTouchHelper.ACTION_STATE_DRAG -> {
+                        draggedViewHolder = viewHolder
+                        viewHolder?.itemView?.apply {
+                            // Animate elevation and scale
+                            animate()
+                                .scaleX(1.05f)
+                                .scaleY(1.05f)
+                                .alpha(0.9f)
+                                .setDuration(100)
+                                .start()
+                            elevation = 8f * resources.displayMetrics.density
+                        }
+                    }
+
+                    ItemTouchHelper.ACTION_STATE_IDLE -> {
+                        draggedViewHolder?.itemView?.apply {
+                            // Reset view
+                            animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .alpha(1.0f)
+                                .setDuration(100)
+                                .start()
+                            elevation = 0f
+                        }
+
+                        // Handle drop
+                        if (dropTargetPosition != -1) {
+                            handleDrop(draggedViewHolder, dropTargetPosition)
+                        }
+
+                        draggedViewHolder = null
+                        dropTargetPosition = -1
+                    }
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.alpha = 1.0f
+            }
+
+            override fun onChildDraw(
+                canvas: Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
+                    // Highlight drop targets
+                    highlightDropTargets(recyclerView, viewHolder, dY)
+                }
+
+                super.onChildDraw(canvas, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+
+            override fun isLongPressDragEnabled(): Boolean = true
+        }
+
+        itemTouchHelper = ItemTouchHelper(callback)
+        itemTouchHelper?.attachToRecyclerView(binding.tabsRecyclerView)
+    }
+
+    private fun highlightDropTargets(
+        recyclerView: RecyclerView,
+        draggedViewHolder: RecyclerView.ViewHolder,
+        dY: Float
+    ) {
+        val draggedPosition = draggedViewHolder.bindingAdapterPosition
+        if (draggedPosition == -1) return
+
+        val draggedItem = tabsAdapter.getItemAt(draggedPosition)
+        if (draggedItem !is TabIslandsVerticalAdapter.ListItem.TabInIsland &&
+            draggedItem !is TabIslandsVerticalAdapter.ListItem.UngroupedTab
+        ) {
+            return
+        }
+
+        // Find and highlight potential drop targets
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val viewHolder = recyclerView.getChildViewHolder(child)
+            val position = viewHolder.bindingAdapterPosition
+
+            if (position == -1) continue
+
+            val item = tabsAdapter.getItemAt(position)
+
+            // Highlight island headers and ungrouped header
+            val shouldHighlight = when (item) {
+                is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> true
+                is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> true
+                is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> true
+                else -> false
+            }
+
+            if (shouldHighlight) {
+                val highlightColor = ContextCompat.getColor(
+                    requireContext(),
+                    R.color.drop_target_highlight
+                )
+                child.setBackgroundColor(highlightColor)
+            } else {
+                child.background = null
             }
         }
+    }
+
+    private fun handleDrop(viewHolder: RecyclerView.ViewHolder?, targetPosition: Int) {
+        if (viewHolder == null || targetPosition == -1) return
+
+        val sourcePosition = viewHolder.bindingAdapterPosition
+        if (sourcePosition == -1) return
+
+        val sourceItem = tabsAdapter.getItemAt(sourcePosition)
+        val targetItem = tabsAdapter.getItemAt(targetPosition)
+
+        // Extract tab ID from source
+        val tabId = when (sourceItem) {
+            is TabIslandsVerticalAdapter.ListItem.TabInIsland -> sourceItem.tab.id
+            is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> sourceItem.tab.id
+            else -> return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (targetItem) {
+                is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> {
+                    // Add tab to island
+                    islandManager.addTabToIsland(tabId, targetItem.island.id)
+                    animateItemMove(sourcePosition, targetPosition)
+                    updateTabsDisplay()
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> {
+                    // Add tab to collapsed island
+                    islandManager.addTabToIsland(tabId, targetItem.island.id)
+                    animateItemMove(sourcePosition, targetPosition)
+                    updateTabsDisplay()
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> {
+                    // Remove tab from island
+                    val currentIsland = islandManager.getIslandForTab(tabId)
+                    if (currentIsland != null) {
+                        islandManager.removeTabFromIsland(tabId, currentIsland.id)
+                        animateItemMove(sourcePosition, targetPosition)
+                        updateTabsDisplay()
+                    }
+                }
+
+                else -> {
+                    // Reordering within same island or ungrouped section
+                    // This could be implemented for fine-grained reordering
+                }
+            }
+        }
+    }
+
+    private fun animateItemMove(fromPosition: Int, toPosition: Int) {
+        // Smooth animation for item movement
+        val animator = ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = 200
+        animator.addUpdateListener {
+            binding.tabsRecyclerView.invalidate()
+        }
+        animator.start()
     }
 
     private fun updateTabsDisplay() {
@@ -160,40 +371,43 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             store.tabs.filter { it.content.private }
         }
 
-        // Get all groups
-        viewLifecycleOwner.lifecycleScope.launch {
-            val groups = tabGroupManager.getAllGroups()
-            val groupsWithTabs = mutableListOf<TabGroupWithTabs>()
+        // Get all islands from island manager
+        val allIslands = islandManager.getAllIslands()
 
-            for (group in groups) {
-                val tabIds = tabGroupManager.getTabIdsInGroup(group.id)
-                // Only include groups that have tabs in current mode
-                val groupTabIds = tabIds.filter { tabId ->
-                    tabs.any { it.id == tabId }
-                }
-                if (groupTabIds.isNotEmpty()) {
-                    groupsWithTabs.add(TabGroupWithTabs(group, groupTabIds))
-                }
+        // Filter islands that have tabs in current mode
+        val islandsWithTabs = allIslands.filter { island ->
+            island.tabIds.any { tabId -> tabs.any { it.id == tabId } }
+        }
+
+        // Get tabs not in any island
+        val tabsInIslands = islandsWithTabs.flatMap { it.tabIds }.toSet()
+        val ungroupedTabs = tabs.filter { it.id !in tabsInIslands }
+
+        // Animate the update
+        binding.tabsRecyclerView.animate()
+            .alpha(0.95f)
+            .setDuration(50)
+            .withEndAction {
+                tabsAdapter.updateData(
+                    islands = islandsWithTabs,
+                    ungroupedTabs = ungroupedTabs,
+                    allTabs = tabs,
+                    selectedTabId = store.selectedTabId
+                )
+                binding.tabsRecyclerView.animate()
+                    .alpha(1f)
+                    .setDuration(50)
+                    .start()
             }
+            .start()
 
-            // Get ungrouped tabs
-            val groupedTabIds = groupsWithTabs.flatMap { it.tabIds }.toSet()
-            val ungroupedTabs = tabs.filter { it.id !in groupedTabIds }
-
-            tabsAdapter.updateData(
-                groups = groupsWithTabs,
-                ungroupedTabs = ungroupedTabs,
-                selectedTabId = store.selectedTabId
-            )
-
-            // Show/hide empty state
-            if (tabs.isEmpty()) {
-                binding.tabsRecyclerView.visibility = View.GONE
-                binding.emptyStateLayout.visibility = View.VISIBLE
-            } else {
-                binding.tabsRecyclerView.visibility = View.VISIBLE
-                binding.emptyStateLayout.visibility = View.GONE
-            }
+        // Show/hide empty state
+        if (tabs.isEmpty()) {
+            binding.tabsRecyclerView.visibility = View.GONE
+            binding.emptyStateLayout.visibility = View.VISIBLE
+        } else {
+            binding.tabsRecyclerView.visibility = View.VISIBLE
+            binding.emptyStateLayout.visibility = View.GONE
         }
 
         // Set correct tab mode selection
@@ -300,40 +514,171 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
         requireContext().components.tabsUseCases.removeTab(tab.id)
 
-        // Remove from group if it was in one
+        // Remove from island if it was in one
         viewLifecycleOwner.lifecycleScope.launch {
-            tabGroupManager.removeTabFromGroups(tabId)
-            updateTabsDisplay()
-        }
-    }
-
-    private fun toggleGroupExpanded(groupId: String) {
-        tabsAdapter.toggleGroupExpanded(groupId)
-    }
-
-    private fun moveTabToGroup(tabId: String, targetGroupId: String?) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            // First remove from current group
-            tabGroupManager.removeTabFromGroups(tabId)
-
-            // Then add to new group if specified
-            if (targetGroupId != null) {
-                tabGroupManager.addTabToGroup(tabId, targetGroupId)
+            val island = islandManager.getIslandForTab(tabId)
+            if (island != null) {
+                islandManager.removeTabFromIsland(tabId, island.id)
             }
-
             updateTabsDisplay()
         }
     }
 
-    private fun removeTabFromGroup(tabId: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            tabGroupManager.removeTabFromGroups(tabId)
+    private fun toggleIslandExpanded(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        // Animate the collapse/expand
+        val wasCollapsed = island.isCollapsed
+        // Use bottom sheet specific method that allows multiple expanded islands
+        islandManager.toggleIslandCollapseBottomSheet(islandId)
+
+        // Use smooth animation
+        if (wasCollapsed) {
+            // Expanding - animate items appearing
+            updateTabsDisplay()
+        } else {
+            // Collapsing - animate items disappearing
             updateTabsDisplay()
         }
+    }
+
+    private fun showIslandOptions(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val options = arrayOf(
+            getString(R.string.tab_island_rename),
+            getString(R.string.tab_island_delete),
+            if (island.isCollapsed) getString(R.string.tab_island_expand) else getString(R.string.tab_island_collapse)
+        )
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(if (island.name.isNotBlank()) island.name else getString(R.string.tab_island_name))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showRenameIslandDialog(islandId)
+                    1 -> confirmDeleteIsland(islandId)
+                    2 -> toggleIslandExpanded(islandId)
+                }
+            }
+            .show()
+    }
+
+    private fun showRenameIslandDialog(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(island.name)
+            hint = getString(R.string.tab_island_name)
+            contentDescription = getString(R.string.tab_island_rename)
+            selectAll()
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.tab_island_rename)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val newName = input.text.toString()
+                islandManager.renameIsland(islandId, newName)
+                updateTabsDisplay()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmDeleteIsland(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+        val tabCount = island.size()
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.tab_island_delete)
+            .setMessage(getString(R.string.delete_island_confirmation, tabCount))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                deleteIsland(islandId)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun deleteIsland(islandId: String) {
+        islandManager.deleteIsland(islandId)
+        // Animate the removal
+        updateTabsDisplay()
+    }
+
+    private fun showUngroupedTabOptions(tabId: String) {
+        val store = requireContext().components.store.state
+        val tab = store.tabs.find { it.id == tabId } ?: return
+
+        val options = arrayOf(
+            getString(R.string.tab_island_create),
+            getString(R.string.cancel)
+        )
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(tab.content.title.ifBlank { getString(R.string.tab_island_name) })
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showCreateIslandDialog(tabId)
+                }
+            }
+            .show()
+    }
+
+    private fun showCreateIslandDialog(tabId: String) {
+        val store = requireContext().components.store.state
+        val ungroupedTabs = if (configuration.browserTabType == BrowserTabType.NORMAL) {
+            store.tabs.filter { !it.content.private }
+        } else {
+            store.tabs.filter { it.content.private }
+        }.filter { tab -> !islandManager.isTabInIsland(tab.id) }
+
+        val tabNames = ungroupedTabs.map { tab ->
+            tab.content.title.ifBlank { tab.content.url }
+        }.toTypedArray()
+
+        val selectedTabs = mutableSetOf(tabId)
+        val checkedItems = BooleanArray(ungroupedTabs.size) { index ->
+            ungroupedTabs[index].id == tabId
+        }
+
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = getString(R.string.tab_island_name)
+        }
+
+        val dialogLayout = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+            addView(input)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.tab_island_create)
+            .setView(dialogLayout)
+            .setMultiChoiceItems(tabNames, checkedItems) { _, which, isChecked ->
+                if (isChecked) {
+                    selectedTabs.add(ungroupedTabs[which].id)
+                } else {
+                    selectedTabs.remove(ungroupedTabs[which].id)
+                }
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                if (selectedTabs.isNotEmpty()) {
+                    val name = input.text.toString()
+                    islandManager.createIsland(
+                        tabIds = selectedTabs.toList(),
+                        name = name.ifBlank { null }
+                    )
+                    updateTabsDisplay()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        itemTouchHelper?.attachToRecyclerView(null)
+        itemTouchHelper = null
         _binding = null
     }
 }

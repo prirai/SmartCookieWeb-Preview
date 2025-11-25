@@ -137,6 +137,7 @@ class TabIslandManager(private val context: Context) {
     /**
      * Toggles the collapse state of an island.
      * When expanding an island, all other islands are collapsed to maintain single-expand behavior.
+     * Use this for the toolbar pill bar.
      */
     fun toggleIslandCollapse(islandId: String): Boolean {
         val island = islands[islandId] ?: return false
@@ -151,6 +152,20 @@ class TabIslandManager(private val context: Context) {
                 }
             }
         }
+
+        islands[islandId] = island.withCollapsed(newCollapsedState)
+        saveIslands()
+        return true
+    }
+
+    /**
+     * Toggles the collapse state of an island for the bottom sheet.
+     * Allows multiple islands to be expanded at the same time.
+     * State persists across reopens.
+     */
+    fun toggleIslandCollapseBottomSheet(islandId: String): Boolean {
+        val island = islands[islandId] ?: return false
+        val newCollapsedState = !island.isCollapsed
 
         islands[islandId] = island.withCollapsed(newCollapsedState)
         saveIslands()

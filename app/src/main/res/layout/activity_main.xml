@@ -15,7 +15,8 @@
         android:inflatedId="@id/navigationToolbar"
         android:layout="@layout/navigation_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/browser_toolbar_height"
+        android:layout_height="0dp"
+        android:visibility="gone"
     />
 
     <androidx.fragment.app.FragmentContainerView
