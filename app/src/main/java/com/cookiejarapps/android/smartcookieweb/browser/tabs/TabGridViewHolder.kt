@@ -22,15 +22,18 @@ import mozilla.components.support.ktx.android.content.getColorFromAttr
 import mozilla.components.support.ktx.android.util.dpToPx
 
 class TabGridViewHolder(
-        itemView: View,
-        private val thumbnailLoader: ImageLoader? = null
+    itemView: View,
+    private val thumbnailLoader: ImageLoader? = null
 ) : TabViewHolder(itemView) {
     @VisibleForTesting
     internal val iconView: ImageView? = itemView.findViewById(R.id.mozac_browser_tabstray_icon)
+
     @VisibleForTesting
     internal val titleView: TextView = itemView.findViewById(R.id.mozac_browser_tabstray_title)
+
     @VisibleForTesting
     internal val tabBackground: ConstraintLayout = itemView.findViewById(R.id.tab_grid_item)
+
     @VisibleForTesting
     internal val closeView: AppCompatImageButton = itemView.findViewById(R.id.mozac_browser_tabstray_close)
 
@@ -47,10 +50,13 @@ class TabGridViewHolder(
         this.tab = tab
         this.styling = styling
 
-        val title = if (tab.content.title.isNotEmpty()) {
-            tab.content.title
-        } else {
-            tab.content.url
+        val isRealUrl = tab.content.url.isNotEmpty() &&
+                !tab.content.url.startsWith("about:")
+        val title = when {
+            tab.content.title.isNotEmpty() -> tab.content.title
+            tab.content.loading && isRealUrl -> "Loading..."
+            tab.content.url.isNotEmpty() && !tab.content.url.startsWith("about:") -> tab.content.url
+            else -> "New Tab"
         }
 
         titleView.text = title
@@ -89,17 +95,20 @@ class TabGridViewHolder(
     internal fun showItemAsSelected() {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
         tabBackground.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.selected_tab))
-        closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+        closeView.imageTintList =
+            ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
     }
 
     @VisibleForTesting
     internal fun showItemAsNotSelected() {
         titleView.setTextColor(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
         tabBackground.setBackgroundColor(itemView.context.getColorFromAttr(R.attr.colorSurface))
-        closeView.imageTintList = ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
+        closeView.imageTintList =
+            ColorStateList.valueOf(itemView.context.getColorFromAttr(android.R.attr.textColorPrimary))
     }
 
     companion object {
-        @Dimension(unit = DP) private const val THUMBNAIL_SIZE = 100
+        @Dimension(unit = DP)
+        private const val THUMBNAIL_SIZE = 100
     }
 }

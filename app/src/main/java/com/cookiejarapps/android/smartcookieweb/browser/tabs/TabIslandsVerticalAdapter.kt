@@ -271,10 +271,14 @@ class TabIslandsVerticalAdapter(
             divider.visibility = if (isFirst) View.GONE else View.VISIBLE
 
             // Set tab title
-            val displayTitle = if (tab.content.title.isNotBlank()) {
-                tab.content.title
-            } else {
-                URLStringUtils.toDisplayUrl(tab.content.url)
+            // Show title if available, only show "Loading..." when actively loading a real URL
+            val isRealUrl = tab.content.url.isNotBlank() &&
+                    !tab.content.url.startsWith("about:")
+            val displayTitle = when {
+                tab.content.title.isNotBlank() -> tab.content.title
+                tab.content.loading && isRealUrl -> "Loading..."
+                tab.content.url.isNotBlank() && !tab.content.url.startsWith("about:") -> URLStringUtils.toDisplayUrl(tab.content.url)
+                else -> "New Tab"
             }
             tabTitle.text = displayTitle
 
@@ -340,10 +344,14 @@ class TabIslandsVerticalAdapter(
             val isSelected = tab.id == selectedTabId
 
             // Set tab title
-            val displayTitle = if (tab.content.title.isNotBlank()) {
-                tab.content.title
-            } else {
-                URLStringUtils.toDisplayUrl(tab.content.url)
+            // Show title if available, only show "Loading..." when actively loading a real URL
+            val isRealUrl = tab.content.url.isNotBlank() &&
+                    !tab.content.url.startsWith("about:")
+            val displayTitle = when {
+                tab.content.title.isNotBlank() -> tab.content.title
+                tab.content.loading && isRealUrl -> "Loading..."
+                tab.content.url.isNotBlank() && !tab.content.url.startsWith("about:") -> URLStringUtils.toDisplayUrl(tab.content.url)
+                else -> "New Tab"
             }
             tabTitle.text = displayTitle
 

@@ -200,10 +200,14 @@ class TabsWithGroupsAdapter(
             val isSelected = tab.id == selectedTabId
 
             // Set tab title
-            binding.tabTitle.text = if (tab.content.title.isNotBlank()) {
-                tab.content.title
-            } else {
-                URLStringUtils.toDisplayUrl(tab.content.url)
+            // Show title if available, only show "Loading..." when actively loading a real URL
+            val isRealUrl = tab.content.url.isNotBlank() &&
+                    !tab.content.url.startsWith("about:")
+            binding.tabTitle.text = when {
+                tab.content.title.isNotBlank() -> tab.content.title
+                tab.content.loading && isRealUrl -> "Loading..."
+                tab.content.url.isNotBlank() && !tab.content.url.startsWith("about:") -> URLStringUtils.toDisplayUrl(tab.content.url)
+                else -> "New Tab"
             }
 
             // Set URL

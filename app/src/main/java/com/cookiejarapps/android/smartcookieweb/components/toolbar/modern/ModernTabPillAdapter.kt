@@ -184,7 +184,10 @@ class ModernTabPillAdapter(
             item1 is TabPillItem.Tab && item2 is TabPillItem.Tab ->
                 item1.session.id == item2.session.id &&
                         item1.islandId == item2.islandId &&
-                        item1.islandColor == item2.islandColor
+                        item1.islandColor == item2.islandColor &&
+                        item1.session.content.title == item2.session.content.title &&
+                        item1.session.content.url == item2.session.content.url &&
+                        item1.session.content.loading == item2.session.content.loading
 
             item1 is TabPillItem.IslandHeader && item2 is TabPillItem.IslandHeader ->
                 item1.island.id == item2.island.id &&
@@ -202,7 +205,12 @@ class ModernTabPillAdapter(
                 item1.island.id == item2.island.id &&
                         item1.tabs.map { it.id } == item2.tabs.map { it.id } &&
                         item1.island.name == item2.island.name &&
-                        item1.island.color == item2.island.color
+                        item1.island.color == item2.island.color &&
+                        item1.tabs.zip(item2.tabs).all { (tab1, tab2) ->
+                            tab1.content.title == tab2.content.title &&
+                                    tab1.content.url == tab2.content.url &&
+                                    tab1.content.loading == tab2.content.loading
+                        }
 
             else -> false
         }
@@ -248,9 +256,15 @@ class ModernTabPillAdapter(
             currentTabId = tab.id
 
             // Set title with smart truncation
-            val title =
-                tab.content.title.takeIf { !it.isNullOrBlank() } ?: tab.content.url.takeIf { !it.isNullOrBlank() }
-                ?: "New Tab"
+            // Show title if available, only show "Loading..." when actively loading a real URL
+            val isRealUrl = !tab.content.url.isNullOrBlank() &&
+                    !tab.content.url.startsWith("about:")
+            val title = when {
+                !tab.content.title.isNullOrBlank() -> tab.content.title
+                tab.content.loading && isRealUrl -> "Loading..."
+                !tab.content.url.isNullOrBlank() && !tab.content.url.startsWith("about:") -> tab.content.url
+                else -> "New Tab"
+            }
             titleView.text = title
 
             // Load favicon
@@ -591,9 +605,15 @@ class ModernTabPillAdapter(
             separator.visibility = View.VISIBLE
 
             // Set title
-            val title = tab.content.title.takeIf { !it.isNullOrBlank() }
-                ?: tab.content.url.takeIf { !it.isNullOrBlank() }
-                ?: "New Tab"
+            // Show title if available, only show "Loading..." when actively loading a real URL
+            val isRealUrl = !tab.content.url.isNullOrBlank() &&
+                    !tab.content.url.startsWith("about:")
+            val title = when {
+                !tab.content.title.isNullOrBlank() -> tab.content.title
+                tab.content.loading && isRealUrl -> "Loading..."
+                !tab.content.url.isNullOrBlank() && !tab.content.url.startsWith("about:") -> tab.content.url
+                else -> "New Tab"
+            }
             titleView.text = title
 
             // Load favicon - check content icon, then cache, then generate

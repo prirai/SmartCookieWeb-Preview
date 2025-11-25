@@ -53,10 +53,13 @@ class TabListViewHolder(
         this.tab = tab
         this.styling = styling
 
-        val title = if (tab.content.title.isNotEmpty()) {
-            tab.content.title
-        } else {
-            tab.content.url
+        val isRealUrl = tab.content.url.isNotEmpty() &&
+                !tab.content.url.startsWith("about:")
+        val title = when {
+            tab.content.title.isNotEmpty() -> tab.content.title
+            tab.content.loading && isRealUrl -> "Loading..."
+            tab.content.url.isNotEmpty() && !tab.content.url.startsWith("about:") -> tab.content.url
+            else -> "New Tab"
         }
 
         titleView.text = title
