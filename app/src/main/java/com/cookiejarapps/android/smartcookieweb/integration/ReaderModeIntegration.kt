@@ -3,6 +3,7 @@ package com.cookiejarapps.android.smartcookieweb.integration
 import android.content.Context
 import androidx.core.content.ContextCompat
 import com.cookiejarapps.android.smartcookieweb.R
+import mozilla.components.support.ktx.android.content.getColorFromAttr
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import mozilla.components.browser.state.selector.selectedTab
 import mozilla.components.browser.state.store.BrowserStore
@@ -27,7 +28,7 @@ class ReaderModeIntegration(
 
     private val readerViewButton: BrowserToolbar.ToggleButton = BrowserToolbar.ToggleButton(
         image = ContextCompat.getDrawable(context, R.drawable.ic_reader_mode)!!.mutate().apply {
-            setTint(ContextCompat.getColor(context, R.color.black))
+            setTint(context.getColorFromAttr(android.R.attr.textColorPrimary))
         },
         imageSelected = ContextCompat.getDrawable(context, R.drawable.ic_reader_mode)!!.mutate().apply {
             setTint(ContextCompat.getColor(context, R.color.photonBlue40))

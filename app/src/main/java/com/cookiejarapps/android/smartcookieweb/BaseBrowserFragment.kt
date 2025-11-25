@@ -37,6 +37,7 @@ import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.integration.ContextMenuIntegration
 import com.cookiejarapps.android.smartcookieweb.integration.FindInPageIntegration
 import com.cookiejarapps.android.smartcookieweb.integration.ReaderModeIntegration
+import com.cookiejarapps.android.smartcookieweb.integration.ReloadStopButtonIntegration
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import com.cookiejarapps.android.smartcookieweb.ssl.showSslDialog
 import kotlinx.coroutines.Dispatchers.IO
@@ -97,7 +98,8 @@ import mozilla.components.ui.widgets.behavior.ViewPosition as OldToolbarPosition
  */
 @ExperimentalCoroutinesApi
 @Suppress("TooManyFunctions", "LargeClass")
-abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, ActivityResultHandler, AccessibilityManager.AccessibilityStateChangeListener {
+abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, ActivityResultHandler,
+    AccessibilityManager.AccessibilityStateChangeListener {
 
     private lateinit var browserFragmentStore: BrowserFragmentStore
     private lateinit var browserAnimator: BrowserAnimator
@@ -109,6 +111,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     @VisibleForTesting
     @Suppress("VariableNaming")
     internal var _browserToolbarView: BrowserToolbarView? = null
+
     @VisibleForTesting
     internal val browserToolbarView: BrowserToolbarView
         get() = _browserToolbarView!!
@@ -131,6 +134,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     private val searchFeature = ViewBoundFeatureWrapper<SearchFeature>()
     private var pipFeature: PictureInPictureFeature? = null
     val readerViewFeature = ViewBoundFeatureWrapper<ReaderModeIntegration>()
+    private val reloadStopButtonFeature = ViewBoundFeatureWrapper<ReloadStopButtonIntegration>()
 
     var customTabSessionId: String? = null
 
@@ -169,17 +173,17 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     }
 
     final override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-            initializeUI(view)
+        initializeUI(view)
 
-            if (customTabSessionId == null) {
-                // We currently only need this observer to navigate to home
-                // in case all tabs have been removed on startup. No need to
-                // this if we have a known session to display.
-                observeRestoreComplete(requireContext().components.store, findNavController())
-            }
-
-            observeTabSelection(requireContext().components.store)
+        if (customTabSessionId == null) {
+            // We currently only need this observer to navigate to home
+            // in case all tabs have been removed on startup. No need to
+            // this if we have a known session to display.
+            observeRestoreComplete(requireContext().components.store, findNavController())
         }
+
+        observeTabSelection(requireContext().components.store)
+    }
 
     private fun initializeUI(view: View) {
         val tab = getCurrentTab()
@@ -222,10 +226,14 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
             customTabSessionId = customTabSessionId,
             onTabCounterClicked = {
                 thumbnailsFeature.get()?.requestScreenshot()
-                
+
                 // Show the new bottom sheet tabs dialog
-                val tabsBottomSheet = com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.newInstance()
-                tabsBottomSheet.show(parentFragmentManager, com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.TAG)
+                val tabsBottomSheet =
+                    com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.newInstance()
+                tabsBottomSheet.show(
+                    parentFragmentManager,
+                    com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsBottomSheetFragment.TAG
+                )
             }
         )
         val browserToolbarMenuController = DefaultBrowserToolbarMenuController(
@@ -244,7 +252,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
 
         _browserToolbarView = BrowserToolbarView(
             container = binding.browserLayout,
-            toolbarPosition = if(UserPreferences(context).toolbarPosition == ToolbarPosition.BOTTOM.ordinal) ToolbarPosition.BOTTOM else ToolbarPosition.TOP,
+            toolbarPosition = if (UserPreferences(context).toolbarPosition == ToolbarPosition.BOTTOM.ordinal) ToolbarPosition.BOTTOM else ToolbarPosition.TOP,
             interactor = browserInteractor,
             customTabSession = customTabSessionId?.let { store.state.findCustomTab(it) },
             lifecycleOwner = viewLifecycleOwner
@@ -323,6 +331,22 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                 browserToolbarView.view,
                 binding.readerViewBar,
                 binding.readerViewAppearanceButton
+            ),
+            owner = this,
+            view = view
+        )
+
+        reloadStopButtonFeature.set(
+            feature = ReloadStopButtonIntegration(
+                context = requireContext(),
+                store = components.store,
+                toolbar = browserToolbarView.view,
+                onReload = { components.sessionUseCases.reload() },
+                onStop = {
+                    components.store.state.selectedTab?.let {
+                        components.sessionUseCases.stopLoading.invoke(it.id)
+                    }
+                }
             ),
             owner = this,
             view = view
@@ -456,7 +480,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                     requireContext().applicationContext,
                     components.store,
                     DownloadService::class,
-                   notificationsDelegate = components.notificationsDelegate
+                    notificationsDelegate = components.notificationsDelegate
                 ),
                 tabId = customTabSessionId,
                 onNeedToRequestPermissions = { permissions ->
@@ -530,11 +554,11 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     @VisibleForTesting
     internal fun expandToolbarOnNavigation(store: BrowserStore) {
         consumeFlow(store) { flow ->
-            flow.mapNotNull {
-                    state -> state.findCustomTabOrSelectedTab(customTabSessionId)
+            flow.mapNotNull { state ->
+                state.findCustomTabOrSelectedTab(customTabSessionId)
             }
-                .ifAnyChanged {
-                        tab -> arrayOf(tab.content.url, tab.content.loadRequest)
+                .ifAnyChanged { tab ->
+                    arrayOf(tab.content.url, tab.content.loadRequest)
                 }
                 .collect {
                     findInPageIntegration.onBackPressed()
@@ -626,7 +650,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                                 activity.browsingModeManager.mode.isPrivate
                             )
                         if (tabs.isEmpty() || store.state.selectedTabId == null) {
-                            when(UserPreferences(requireContext()).homepageType){
+                            when (UserPreferences(requireContext()).homepageType) {
                                 HomepageChoice.VIEW.ordinal -> {
                                     components.tabsUseCases.addTab.invoke(
                                         "about:homepage",
@@ -638,12 +662,14 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                                         )
                                     )
                                 }
+
                                 HomepageChoice.BLANK_PAGE.ordinal -> {
                                     components.tabsUseCases.addTab.invoke(
                                         "about:blank",
                                         selectTab = true
                                     )
                                 }
+
                                 HomepageChoice.CUSTOM_PAGE.ordinal -> {
                                     components.tabsUseCases.addTab.invoke(
                                         UserPreferences(requireContext()).customHomepageUrl,
