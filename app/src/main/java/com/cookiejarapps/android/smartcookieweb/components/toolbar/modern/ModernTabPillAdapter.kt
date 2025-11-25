@@ -382,7 +382,7 @@ class ModernTabPillAdapter(
                 .scaleX(0.7f)
                 .scaleY(0.7f)
                 .rotationY(90f)
-                .setDuration(300)
+                .setDuration(800)
                 .start()
         }
 

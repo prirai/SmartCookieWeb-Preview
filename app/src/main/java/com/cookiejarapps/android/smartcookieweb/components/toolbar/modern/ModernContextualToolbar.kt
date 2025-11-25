@@ -66,17 +66,17 @@ class ModernContextualToolbar @JvmOverloads constructor(
         orientation = HORIZONTAL
         gravity = android.view.Gravity.CENTER_VERTICAL
         setPadding(12, 8, 12, 8) // Increased padding for better spacing
-        
+
         // CRITICAL: Increased height for better usability
         layoutParams = android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             72 // Increased height for better touch targets
         )
-        
+
         // Create modern layout with original functionality
         createModernLayout()
         setupModernClickListeners()
-        
+
         // Modern styling with proper dark mode support
         setBackgroundColor(ContextCompat.getColor(context, android.R.color.background_dark))
         elevation = 8f
@@ -85,38 +85,38 @@ class ModernContextualToolbar @JvmOverloads constructor(
     private fun createModernLayout() {
         // Create all buttons with modern styling but original functionality
         val buttonSize = 48
-        
+
         // Back button (also serves as bookmarks button on homepage)
         backButton = createModernButton(R.drawable.ic_arrow_back, "Go back", buttonSize)
         addView(backButton, createWeightedLayoutParams())
-        
+
         // Forward button (hidden by default, context-aware)
         forwardButton = createModernButton(R.drawable.ic_arrow_forward, "Go forward", buttonSize)
         addView(forwardButton, createWeightedLayoutParams())
         forwardButton.visibility = View.GONE
-        
+
         // Share button (context-aware)
         shareButton = createModernButton(R.drawable.ic_share, "Share", buttonSize)
         addView(shareButton, createWeightedLayoutParams())
-        
+
         // Search button (for homepage context)
         searchButton = createModernButton(android.R.drawable.ic_search_category_default, "Search", buttonSize)
         addView(searchButton, createWeightedLayoutParams())
         searchButton.visibility = View.GONE
-        
+
         // New Tab button (context-aware)
         newTabButton = createModernButton(android.R.drawable.ic_input_add, "New tab", buttonSize)
         addView(newTabButton, createWeightedLayoutParams())
         newTabButton.visibility = View.GONE
-        
+
         // Refresh button (additional feature)
         refreshButton = createModernButton(R.drawable.ic_refresh, "Refresh", buttonSize)
         addView(refreshButton, createWeightedLayoutParams())
         refreshButton.visibility = View.GONE
-        
+
         // Tab count button (styled like original with background and text)
         createModernTabCountButton()
-        
+
         // Menu button (always visible)
         menuButton = createModernButton(R.drawable.ic_more_vert, "More options", buttonSize)
         addView(menuButton, createWeightedLayoutParams())
@@ -154,7 +154,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
                 }
             }
             addView(backgroundView)
-            
+
             // Tab count text
             tabCountText = TextView(context).apply {
                 text = "1"
@@ -163,64 +163,68 @@ class ModernContextualToolbar @JvmOverloads constructor(
                 setTextColor(ContextCompat.getColor(context, android.R.color.white))
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
                 maxLines = 1
-                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                ).apply {
                     gravity = android.view.Gravity.CENTER
                 }
             }
             addView(tabCountText)
-            
+
             background = ContextCompat.getDrawable(context, android.R.drawable.list_selector_background)
             contentDescription = "Tabs"
             isClickable = true
             isFocusable = true
         }
-        
+
         addView(tabCountButton, createWeightedLayoutParams())
     }
 
     private fun setupModernClickListeners() {
-        backButton.setOnClickListener { 
+        backButton.setOnClickListener {
             // Check if it's showing bookmarks icon or back button (same logic as original)
-            if (backButton.drawable.constantState == 
-                ContextCompat.getDrawable(context, android.R.drawable.btn_star_big_off)?.constantState) {
+            if (backButton.drawable.constantState ==
+                ContextCompat.getDrawable(context, android.R.drawable.btn_star_big_off)?.constantState
+            ) {
                 listener?.onBookmarksClicked()
             } else {
                 listener?.onBackClicked()
             }
             animateModernButtonPress(backButton)
         }
-        
-        forwardButton.setOnClickListener { 
+
+        forwardButton.setOnClickListener {
             listener?.onForwardClicked()
             animateModernButtonPress(forwardButton)
         }
-        
-        shareButton.setOnClickListener { 
+
+        shareButton.setOnClickListener {
             listener?.onShareClicked()
             animateModernButtonPress(shareButton)
         }
-        
-        searchButton.setOnClickListener { 
+
+        searchButton.setOnClickListener {
             listener?.onSearchClicked()
             animateModernButtonPress(searchButton)
         }
-        
-        newTabButton.setOnClickListener { 
+
+        newTabButton.setOnClickListener {
             listener?.onNewTabClicked()
             animateModernButtonPress(newTabButton)
         }
-        
-        refreshButton.setOnClickListener { 
+
+        refreshButton.setOnClickListener {
             listener?.onRefreshClicked()
             animateRefreshButton()
         }
-        
-        tabCountButton.setOnClickListener { 
+
+        tabCountButton.setOnClickListener {
             listener?.onTabCountClicked()
             animateModernButtonPress(tabCountButton)
         }
-        
-        menuButton.setOnClickListener { 
+
+        menuButton.setOnClickListener {
             listener?.onMenuClicked()
             animateModernButtonPress(menuButton)
         }
@@ -242,16 +246,19 @@ class ModernContextualToolbar @JvmOverloads constructor(
         this.canGoForward = canGoForward
         this.currentTabCount = tabCount
         this.isHomepage = isHomepage
-        
-        android.util.Log.d("ModernContextualToolbar", "📱 Context update: homepage=$isHomepage, canBack=$canGoBack, canForward=$canGoForward, tabs=$tabCount")
-        
+
+        android.util.Log.d(
+            "ModernContextualToolbar",
+            "📱 Context update: homepage=$isHomepage, canBack=$canGoBack, canForward=$canGoForward, tabs=$tabCount"
+        )
+
         when {
             isHomepage -> showModernHomepageContext(tabCount, canGoForward)
             canGoForward -> showModernFullNavigationContext(tabCount)
             tab != null && !isHomepage -> showModernWebsiteContext(canGoBack, tabCount)
             else -> showModernDefaultContext(tabCount)
         }
-        
+
         updateModernTabCount(tabCount)
     }
 
@@ -260,30 +267,30 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     private fun showModernHomepageContext(tabCount: Int, canGoForward: Boolean = false) {
         android.util.Log.d("ModernContextualToolbar", "🏠 Showing homepage context")
-        
+
         // Always show the toolbar on homepage
         this.visibility = View.VISIBLE
-        
+
         // Show: bookmarks, forward(enabled/disabled), search, tabs, menu
         backButton.visibility = View.VISIBLE
         backButton.setImageResource(android.R.drawable.btn_star_big_off) // Bookmarks icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
-        
+
         forwardButton.visibility = View.VISIBLE
         forwardButton.setImageResource(R.drawable.ic_arrow_forward)
         forwardButton.isEnabled = canGoForward
         forwardButton.alpha = if (canGoForward) 1.0f else 0.4f
-        
+
         shareButton.visibility = View.GONE
-        
+
         searchButton.visibility = View.VISIBLE
         searchButton.isEnabled = true
         searchButton.alpha = 1.0f
-        
+
         newTabButton.visibility = View.GONE
         refreshButton.visibility = View.GONE
-        
+
         tabCountButton.visibility = View.VISIBLE
         menuButton.visibility = View.VISIBLE
     }
@@ -293,27 +300,27 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     private fun showModernWebsiteContext(canGoBack: Boolean, tabCount: Int) {
         android.util.Log.d("ModernContextualToolbar", "🌐 Showing website context")
-        
+
         // Show: back, share, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
         backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
         backButton.isEnabled = canGoBack
         backButton.alpha = if (canGoBack) 1.0f else 0.4f
-        
+
         forwardButton.visibility = View.GONE
-        
+
         shareButton.visibility = View.VISIBLE
         shareButton.isEnabled = true
         shareButton.alpha = 1.0f
-        
+
         searchButton.visibility = View.GONE
-        
+
         newTabButton.visibility = View.VISIBLE
         newTabButton.isEnabled = true
         newTabButton.alpha = 1.0f
-        
+
         refreshButton.visibility = View.GONE
-        
+
         tabCountButton.visibility = View.VISIBLE
         menuButton.visibility = View.VISIBLE
     }
@@ -323,28 +330,28 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     private fun showModernFullNavigationContext(tabCount: Int) {
         android.util.Log.d("ModernContextualToolbar", "🔄 Showing full navigation context")
-        
+
         // Show: back, forward, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
         backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
-        
+
         forwardButton.visibility = View.VISIBLE
         forwardButton.setImageResource(R.drawable.ic_arrow_forward) // Reset to forward icon
         forwardButton.isEnabled = true
         forwardButton.alpha = 1.0f
-        
+
         shareButton.visibility = View.GONE
-        
+
         searchButton.visibility = View.GONE
-        
+
         newTabButton.visibility = View.VISIBLE
         newTabButton.isEnabled = true
         newTabButton.alpha = 1.0f
-        
+
         refreshButton.visibility = View.GONE
-        
+
         tabCountButton.visibility = View.VISIBLE
         menuButton.visibility = View.VISIBLE
     }
@@ -354,24 +361,24 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     private fun showModernDefaultContext(tabCount: Int) {
         android.util.Log.d("ModernContextualToolbar", "⚪ Showing default context")
-        
+
         // Show basic navigation
         backButton.visibility = View.VISIBLE
         backButton.setImageResource(R.drawable.ic_arrow_back) // Reset to back icon
         backButton.isEnabled = true
         backButton.alpha = 1.0f
-        
+
         forwardButton.visibility = View.GONE
-        
+
         shareButton.visibility = View.VISIBLE
         shareButton.isEnabled = true
         shareButton.alpha = 1.0f
-        
+
         searchButton.visibility = View.GONE
-        
+
         newTabButton.visibility = View.VISIBLE
         refreshButton.visibility = View.GONE
-        
+
         tabCountButton.visibility = View.VISIBLE
         menuButton.visibility = View.VISIBLE
     }
@@ -381,7 +388,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     private fun updateModernTabCount(count: Int) {
         tabCountText.text = if (count > 99) "99+" else count.toString()
-        
+
         // Update content description for accessibility
         tabCountButton.contentDescription = "Tabs: $count"
     }
@@ -400,7 +407,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
                     .start()
             }
             .start()
-        
+
         // Haptic feedback for modern experience
         button.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
     }
@@ -410,7 +417,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
             .rotation(refreshButton.rotation + 360f)
             .setDuration(500)
             .start()
-        
+
         animateModernButtonPress(refreshButton)
     }
 
@@ -419,13 +426,13 @@ class ModernContextualToolbar @JvmOverloads constructor(
      */
     fun updateLoadingState(loading: Boolean) {
         isLoading = loading
-        
+
         if (isLoading) {
             refreshButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
             refreshButton.contentDescription = "Stop loading"
             refreshButton.animate()
                 .rotation(refreshButton.rotation + 180f)
-                .setDuration(300)
+                .setDuration(800)
                 .start()
         } else {
             refreshButton.setImageResource(R.drawable.ic_refresh)
@@ -439,7 +446,7 @@ class ModernContextualToolbar @JvmOverloads constructor(
     fun updateNavigationState(canBack: Boolean, canForward: Boolean) {
         canGoBack = canBack
         canGoForward = canForward
-        
+
         // Update the current context with new navigation state
         updateForModernContext(currentTab, canBack, canForward, currentTabCount, isHomepage)
     }

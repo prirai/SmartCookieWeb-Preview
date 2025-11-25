@@ -26,7 +26,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
     private var scrollingEnabled = true
     private val hideAnimator = ValueAnimator()
     private var engineView: EngineView? = null
-    
+
     // Position tracking for proper scroll direction
     private var toolbarPosition: ToolbarPosition = ToolbarPosition.BOTTOM
 
@@ -34,7 +34,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
     private var tabGroupComponent: View? = null
     private var addressBarComponent: View? = null
     private var contextualComponent: View? = null
-    
+
     enum class ToolbarPosition {
         TOP, BOTTOM
     }
@@ -46,28 +46,30 @@ class ModernToolbarSystem @JvmOverloads constructor(
     }
 
     fun addComponent(component: View, type: ComponentType) {
-        
+
         val layoutParams = LayoutParams(
             LayoutParams.MATCH_PARENT,
             LayoutParams.WRAP_CONTENT
         )
-        
+
         when (type) {
             ComponentType.TAB_GROUP -> {
                 tabGroupComponent = component
                 addView(component, 0, layoutParams) // Top position
             }
+
             ComponentType.ADDRESS_BAR -> {
                 addressBarComponent = component
                 val index = if (tabGroupComponent != null) 1 else 0
                 addView(component, index, layoutParams)
             }
+
             ComponentType.CONTEXTUAL -> {
                 contextualComponent = component
                 addView(component, layoutParams) // Bottom position
             }
         }
-        
+
         // Update engine view about our new height
         updateDynamicToolbarHeight()
     }
@@ -78,7 +80,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
             ComponentType.ADDRESS_BAR -> addressBarComponent
             ComponentType.CONTEXTUAL -> contextualComponent
         }
-        
+
         component?.let {
             removeView(it)
             when (type) {
@@ -87,7 +89,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
                 ComponentType.CONTEXTUAL -> contextualComponent = null
             }
         }
-        
+
         updateDynamicToolbarHeight()
     }
 
@@ -95,7 +97,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
         engineView = engine
         updateDynamicToolbarHeight()
     }
-    
+
     fun setToolbarPosition(position: ToolbarPosition) {
         toolbarPosition = position
     }
@@ -109,14 +111,14 @@ class ModernToolbarSystem @JvmOverloads constructor(
 
     fun getTotalHeight(): Int {
         var totalHeight = 0
-        
+
         for (i in 0 until childCount) {
             val child = getChildAt(i)
             if (child.isVisible) {
                 totalHeight += child.height
             }
         }
-        
+
         return totalHeight
     }
 
@@ -145,10 +147,10 @@ class ModernToolbarSystem @JvmOverloads constructor(
     private fun animateToOffset(targetOffset: Int) {
         hideAnimator.cancel()
         hideAnimator.removeAllUpdateListeners()
-        
+
         hideAnimator.apply {
             setIntValues(currentOffset, targetOffset)
-            duration = 300
+            duration = 800
             addUpdateListener { animation ->
                 val offset = animation.animatedValue as Int
                 setToolbarOffset(offset)
@@ -160,7 +162,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
     fun setToolbarOffset(offset: Int) {
         val totalHeight = getTotalHeight()
         currentOffset = offset.coerceIn(0, totalHeight)
-        
+
         // Position-aware translation:
         // TOP toolbar: Negative Y to hide upward, 0 Y to show
         // BOTTOM toolbar: Positive Y to hide downward, 0 Y to show
@@ -168,11 +170,11 @@ class ModernToolbarSystem @JvmOverloads constructor(
             ToolbarPosition.TOP -> -currentOffset.toFloat()  // Negative moves UP (hiding)
             ToolbarPosition.BOTTOM -> currentOffset.toFloat()  // Positive moves DOWN (hiding)
         }
-        
+
         alpha = if (totalHeight > 0) {
             1f - (currentOffset.toFloat() / totalHeight * 0.3f) // Subtle fade
         } else 1f
-        
+
         // Apply clipping to engine view
         engineView?.setVerticalClipping(currentOffset)
     }
@@ -181,7 +183,7 @@ class ModernToolbarSystem @JvmOverloads constructor(
 
     enum class ComponentType {
         TAB_GROUP,
-        ADDRESS_BAR, 
+        ADDRESS_BAR,
         CONTEXTUAL
     }
 }

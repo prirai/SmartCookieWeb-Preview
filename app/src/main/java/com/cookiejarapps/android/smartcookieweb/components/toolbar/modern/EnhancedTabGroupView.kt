@@ -426,6 +426,11 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         lastTabIds = currentTabIds
         lastSelectedId = selectedId
 
+        // Auto-expand collapsed island if selected tab is inside it
+        if (hasSelectionChanged && selectedId != null) {
+            expandIslandIfTabInside(selectedId)
+        }
+
         val shouldShow = tabs.size > 1
 
         if (shouldShow) {
@@ -446,9 +451,45 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                 tabAdapter.updateDisplayItems(displayItems, selectedId)
             }
 
+            // Scroll to selected tab if selection changed
+            if (hasSelectionChanged && selectedId != null) {
+                scrollToSelectedTab(selectedId)
+            }
+
             animateVisibility(true)
         } else {
             animateVisibility(false)
+        }
+    }
+
+    /**
+     * Scrolls to show the selected tab in the RecyclerView
+     */
+    private fun scrollToSelectedTab(selectedId: String) {
+        post {
+            val displayItems = islandManager.createDisplayItems(currentTabs)
+            val position = displayItems.indexOfFirst { item ->
+                when (item) {
+                    is TabPillItem.Tab -> item.session.id == selectedId
+                    is TabPillItem.ExpandedIslandGroup -> item.tabs.any { it.id == selectedId }
+                    else -> false
+                }
+            }
+
+            if (position >= 0) {
+                smoothScrollToPosition(position)
+            }
+        }
+    }
+
+    /**
+     * Expands a collapsed island if the given tab is inside it
+     */
+    private fun expandIslandIfTabInside(tabId: String) {
+        val island = islandManager.getIslandForTab(tabId)
+        if (island != null && island.isCollapsed) {
+            islandManager.toggleIslandCollapse(island.id)
+            refreshDisplay()
         }
     }
 
@@ -645,7 +686,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                 .translationY(-height.toFloat())
                 .scaleX(0.95f)
                 .scaleY(0.95f)
-                .setDuration(300)
+                .setDuration(800)
                 .withEndAction { visibility = GONE }
                 .start()
         }
