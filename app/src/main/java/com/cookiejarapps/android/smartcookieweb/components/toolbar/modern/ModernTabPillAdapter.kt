@@ -21,115 +21,213 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Revolutionary adapter for beautiful tab pills with favicons, titles, 
- * dynamic colors, and smooth animations.
+ * Enhanced adapter for Tab Islands with beautiful tab pills, island headers,
+ * colored indicators, and collapse/expand functionality.
  */
 class ModernTabPillAdapter(
     private var onTabClick: (String) -> Unit,
-    private var onTabClose: (String) -> Unit
-) : RecyclerView.Adapter<ModernTabPillAdapter.TabPillViewHolder>() {
+    private var onTabClose: (String) -> Unit,
+    private var onIslandHeaderClick: (String) -> Unit = {},
+    private var onIslandLongPress: (String) -> Unit = {}
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private var tabs = mutableListOf<SessionState>()
+    private var displayItems = mutableListOf<TabPillItem>()
     private var selectedTabId: String? = null
-    private var groupColors = listOf<Int>()
     private val scope = CoroutineScope(Dispatchers.Main)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TabPillViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.modern_tab_pill_item, parent, false)
-        return TabPillViewHolder(view)
+    companion object {
+        private const val VIEW_TYPE_TAB = 0
+        private const val VIEW_TYPE_ISLAND_HEADER = 1
+        private const val VIEW_TYPE_COLLAPSED_ISLAND = 2
     }
 
-    override fun onBindViewHolder(holder: TabPillViewHolder, position: Int) {
-        val tab = tabs[position]
-        val isSelected = tab.id == selectedTabId
-        val colorIndex = position % groupColors.size
-        val pillColor = if (groupColors.isNotEmpty()) groupColors[colorIndex] else 0xFF6200EE.toInt()
-        
-        holder.bind(tab, isSelected, pillColor)
+    override fun getItemViewType(position: Int): Int {
+        return when (displayItems[position]) {
+            is TabPillItem.Tab -> VIEW_TYPE_TAB
+            is TabPillItem.IslandHeader -> VIEW_TYPE_ISLAND_HEADER
+            is TabPillItem.CollapsedIsland -> VIEW_TYPE_COLLAPSED_ISLAND
+        }
     }
 
-    override fun getItemCount(): Int = tabs.size
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when (viewType) {
+            VIEW_TYPE_TAB -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.modern_tab_pill_item, parent, false)
+                TabPillViewHolder(view)
+            }
 
-    fun updateTabs(newTabs: List<SessionState>, selectedId: String?, colors: List<Int>) {
-        selectedTabId = selectedId
-        groupColors = colors
-        
-        // Smooth list updates with animations
-        val oldSize = tabs.size
-        tabs.clear()
-        tabs.addAll(newTabs)
-        
-        when {
-            oldSize == 0 && newTabs.isNotEmpty() -> {
-                notifyItemRangeInserted(0, newTabs.size)
+            VIEW_TYPE_ISLAND_HEADER -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.tab_island_header_item, parent, false)
+                IslandHeaderViewHolder(view)
             }
-            oldSize > newTabs.size -> {
-                notifyItemRangeChanged(0, newTabs.size)
-                notifyItemRangeRemoved(newTabs.size, oldSize - newTabs.size)
+
+            VIEW_TYPE_COLLAPSED_ISLAND -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.tab_island_collapsed_item, parent, false)
+                CollapsedIslandViewHolder(view)
             }
-            oldSize < newTabs.size -> {
-                notifyItemRangeChanged(0, oldSize)
-                notifyItemRangeInserted(oldSize, newTabs.size - oldSize)
+
+            else -> throw IllegalArgumentException("Unknown view type: $viewType")
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (val item = displayItems[position]) {
+            is TabPillItem.Tab -> {
+                val isSelected = item.session.id == selectedTabId
+                (holder as TabPillViewHolder).bind(item, isSelected)
             }
-            else -> {
-                notifyItemRangeChanged(0, newTabs.size)
+
+            is TabPillItem.IslandHeader -> {
+                (holder as IslandHeaderViewHolder).bind(item.island)
+            }
+
+            is TabPillItem.CollapsedIsland -> {
+                (holder as CollapsedIslandViewHolder).bind(item.island, item.tabCount)
             }
         }
-        
+    }
+
+    override fun getItemCount(): Int = displayItems.size
+
+    fun updateDisplayItems(items: List<TabPillItem>, selectedId: String?) {
+        val oldSelectedId = selectedTabId
+        selectedTabId = selectedId
+
+        // Check if items actually changed
+        val itemsChanged = items.size != displayItems.size ||
+                items.zip(displayItems).any { (new, old) -> !areItemsSame(new, old) }
+
+        // If only selection changed, just update affected items
+        if (!itemsChanged && oldSelectedId != selectedId) {
+            // Find and update only the selected/deselected items
+            displayItems.forEachIndexed { index, item ->
+                if (item is TabPillItem.Tab) {
+                    val wasSelected = item.session.id == oldSelectedId
+                    val isSelected = item.session.id == selectedId
+                    if (wasSelected || isSelected) {
+                        notifyItemChanged(index)
+                    }
+                }
+            }
+            return
+        }
+
+        // If nothing changed at all, skip update
+        if (!itemsChanged && oldSelectedId == selectedId) {
+            return
+        }
+
+        val oldSize = displayItems.size
+        displayItems.clear()
+        displayItems.addAll(items)
+
+        when {
+            oldSize == 0 && items.isNotEmpty() -> {
+                notifyItemRangeInserted(0, items.size)
+            }
+
+            oldSize > items.size -> {
+                notifyItemRangeChanged(0, items.size)
+                notifyItemRangeRemoved(items.size, oldSize - items.size)
+            }
+
+            oldSize < items.size -> {
+                notifyItemRangeChanged(0, oldSize)
+                notifyItemRangeInserted(oldSize, items.size - oldSize)
+            }
+
+            else -> {
+                notifyItemRangeChanged(0, items.size)
+            }
+        }
+    }
+
+    private fun areItemsSame(item1: TabPillItem, item2: TabPillItem): Boolean {
+        // Items are different if they're different types (e.g., Header vs CollapsedIsland)
+        if (item1::class != item2::class) return false
+
+        return when {
+            item1 is TabPillItem.Tab && item2 is TabPillItem.Tab ->
+                item1.session.id == item2.session.id &&
+                        item1.islandId == item2.islandId &&
+                        item1.islandColor == item2.islandColor
+
+            item1 is TabPillItem.IslandHeader && item2 is TabPillItem.IslandHeader ->
+                item1.island.id == item2.island.id &&
+                        item1.island.isCollapsed == item2.island.isCollapsed &&
+                        item1.island.name == item2.island.name
+
+            item1 is TabPillItem.CollapsedIsland && item2 is TabPillItem.CollapsedIsland ->
+                item1.island.id == item2.island.id &&
+                        item1.tabCount == item2.tabCount &&
+                        item1.island.name == item2.island.name
+
+            else -> false
+        }
     }
 
     fun moveTab(fromPosition: Int, toPosition: Int) {
         if (fromPosition < toPosition) {
             for (i in fromPosition until toPosition) {
-                tabs[i] = tabs[i + 1].also { tabs[i + 1] = tabs[i] }
+                displayItems[i] = displayItems[i + 1].also { displayItems[i + 1] = displayItems[i] }
             }
         } else {
             for (i in fromPosition downTo toPosition + 1) {
-                tabs[i] = tabs[i - 1].also { tabs[i - 1] = tabs[i] }
+                displayItems[i] = displayItems[i - 1].also { displayItems[i - 1] = displayItems[i] }
             }
         }
         notifyItemMoved(fromPosition, toPosition)
     }
 
-    fun updateCallbacks(onTabClick: (String) -> Unit, onTabClose: (String) -> Unit) {
+    fun updateCallbacks(
+        onTabClick: (String) -> Unit,
+        onTabClose: (String) -> Unit,
+        onIslandHeaderClick: (String) -> Unit = {},
+        onIslandLongPress: (String) -> Unit = {}
+    ) {
         this.onTabClick = onTabClick
         this.onTabClose = onTabClose
+        this.onIslandHeaderClick = onIslandHeaderClick
+        this.onIslandLongPress = onIslandLongPress
     }
 
+    // ViewHolder for regular tabs
     inner class TabPillViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cardView: CardView = itemView.findViewById(R.id.tabPillCard)
         private val faviconView: ImageView = itemView.findViewById(R.id.tabFavicon)
         private val titleView: TextView = itemView.findViewById(R.id.tabTitle)
         private val closeButton: ImageView = itemView.findViewById(R.id.tabCloseButton)
         private val selectionIndicator: View = itemView.findViewById(R.id.selectionIndicator)
-        
+
         private var currentTabId: String? = null
 
-        fun bind(tab: SessionState, isSelected: Boolean, pillColor: Int) {
-            android.util.Log.d("TabPillDebug", "🎨 Binding tab: id=${tab.id}, title='${tab.content.title}', url='${tab.content.url}', selected=$isSelected")
+        fun bind(item: TabPillItem.Tab, isSelected: Boolean) {
+            val tab = item.session
             currentTabId = tab.id
-            
+
             // Set title with smart truncation
-            val title = tab.content.title.takeIf { !it.isNullOrBlank() } ?: 
-                       tab.content.url.takeIf { !it.isNullOrBlank() } ?: "New Tab"
+            val title =
+                tab.content.title.takeIf { !it.isNullOrBlank() } ?: tab.content.url.takeIf { !it.isNullOrBlank() }
+                ?: "New Tab"
             titleView.text = title
-            android.util.Log.d("TabPillDebug", "📝 Set title to: '$title'")
-            
-            // Load favicon asynchronously with beautiful fallback
+
+            // Load favicon
             loadFavicon(tab)
-            
-            // Apply gorgeous styling based on selection and color
-            applyPillStyling(isSelected, pillColor)
-            
-            // Setup interactions with haptic feedback
-            cardView.setOnClickListener { 
+
+            // Apply styling with island color if applicable
+            applyPillStyling(isSelected, item)
+
+            // Setup interactions
+            cardView.setOnClickListener {
                 onTabClick(tab.id)
                 animateClick()
                 vibrateHaptic()
             }
-            
-            closeButton.setOnClickListener { 
+
+            closeButton.setOnClickListener {
                 onTabClose(tab.id)
                 animateClose()
                 vibrateHaptic()
@@ -137,90 +235,86 @@ class ModernTabPillAdapter(
         }
 
         private fun loadFavicon(tab: SessionState) {
-            android.util.Log.d("TabPillDebug", "🖼️ Loading favicon for tab: ${tab.id}, has icon: ${tab.content.icon != null}")
-            
-            // Try to get favicon from tab content first (like tab list does)
+            // Try to get favicon from tab content first
             val existingIcon = tab.content.icon
             if (existingIcon != null) {
-                android.util.Log.d("TabPillDebug", "✅ Using cached favicon from tab content")
                 faviconView.setImageBitmap(existingIcon)
                 return
             }
-            
+
             // Try to get from favicon cache
             try {
                 val context = itemView.context
                 val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
                 val cachedFavicon = faviconCache.getFaviconFromMemory(tab.content.url ?: "")
-                
+
                 if (cachedFavicon != null) {
-                    android.util.Log.d("TabPillDebug", "✅ Using cached favicon from FaviconCache")
                     faviconView.setImageBitmap(cachedFavicon)
                     return
                 }
             } catch (e: Exception) {
-                android.util.Log.w("TabPillDebug", "Could not access FaviconCache", e)
+                android.util.Log.w("TabPillAdapter", "Could not access FaviconCache", e)
             }
-            
+
             // Fallback to generated favicon
             scope.launch {
                 try {
                     val favicon = withContext(Dispatchers.IO) {
-                        android.util.Log.d("TabPillDebug", "🎨 Generating fallback favicon for: ${tab.content.url}")
-                        generateBeautifulFavicon(
-                            tab.content.url ?: "", 
-                            itemView.context
-                        )
+                        generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
                     }
                     faviconView.setImageBitmap(favicon)
-                    android.util.Log.d("TabPillDebug", "✅ Generated favicon set successfully")
                 } catch (e: Exception) {
-                    android.util.Log.e("TabPillDebug", "❌ Favicon generation failed, using fallback", e)
-                    // Final fallback to material icon
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }
         }
 
-        private fun applyPillStyling(isSelected: Boolean, pillColor: Int) {
+        private fun applyPillStyling(isSelected: Boolean, item: TabPillItem.Tab) {
+            val islandColor = item.islandColor
+
             if (isSelected) {
-                // Selected: Vibrant pill with accent
+                // Selected: Vibrant pill with island color or default
+                val color = islandColor ?: 0xFF6200EE.toInt()
                 val gradient = GradientDrawable().apply {
                     cornerRadius = 24f
-                    setColor(pillColor)
+                    setColor(color)
                     alpha = 230
                 }
                 cardView.background = gradient
                 cardView.elevation = 12f
                 cardView.scaleX = 1.02f
                 cardView.scaleY = 1.02f
-                
+
                 titleView.setTextColor(Color.WHITE)
                 selectionIndicator.visibility = View.VISIBLE
                 selectionIndicator.setBackgroundColor(Color.WHITE)
-                
-                // Glow effect
+
                 cardView.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
                 cardView.clipToOutline = false
-                
+
             } else {
-                // Unselected: Elegant subtle pill
+                // Unselected: Subtle pill with island color hint
                 val backgroundColor = if (isDarkMode()) {
                     ContextCompat.getColor(itemView.context, android.R.color.background_dark)
                 } else {
                     ContextCompat.getColor(itemView.context, android.R.color.background_light)
                 }
-                
+
                 val gradient = GradientDrawable().apply {
                     cornerRadius = 20f
                     setColor(backgroundColor)
-                    setStroke(2, pillColor and 0x40FFFFFF)
+                    if (islandColor != null) {
+                        // Show colored left border for island tabs
+                        setStroke(4, islandColor)
+                    } else {
+                        setStroke(2, 0x40FFFFFF)
+                    }
                 }
                 cardView.background = gradient
                 cardView.elevation = 4f
                 cardView.scaleX = 1f
                 cardView.scaleY = 1f
-                
+
                 val textColor = if (isDarkMode()) {
                     ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark_nodisable)
                 } else {
@@ -228,7 +322,7 @@ class ModernTabPillAdapter(
                 }
                 titleView.setTextColor(textColor)
                 selectionIndicator.visibility = View.GONE
-                
+
                 cardView.clipToOutline = true
             }
         }
@@ -249,7 +343,6 @@ class ModernTabPillAdapter(
         }
 
         private fun animateClose() {
-            // Beautiful removal animation
             cardView.animate()
                 .alpha(0f)
                 .scaleX(0.7f)
@@ -264,12 +357,108 @@ class ModernTabPillAdapter(
         }
 
         fun isTabId(tabId: String): Boolean = currentTabId == tabId
-        
+
         private fun isDarkMode(): Boolean {
             return when (itemView.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) {
                 android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
                 else -> false
             }
+        }
+    }
+
+    // ViewHolder for island headers
+    inner class IslandHeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val nameText: TextView = itemView.findViewById(R.id.islandName)
+        private val colorIndicator: View = itemView.findViewById(R.id.islandColorIndicator)
+        private val collapseButton: ImageView = itemView.findViewById(R.id.islandCollapseButton)
+        private val containerCard: CardView = itemView.findViewById(R.id.islandHeaderCard)
+
+        fun bind(island: TabIsland) {
+            nameText.text = island.name
+            colorIndicator.setBackgroundColor(island.color)
+
+            // Update collapse button icon
+            collapseButton.setImageResource(
+                if (island.isCollapsed) R.drawable.ic_expand_more
+                else R.drawable.ic_expand_less
+            )
+
+            // Click to collapse/expand
+            containerCard.setOnClickListener {
+                onIslandHeaderClick(island.id)
+                animateHeaderClick()
+            }
+
+            // Long press for rename/options
+            containerCard.setOnLongClickListener {
+                onIslandLongPress(island.id)
+                itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                true
+            }
+        }
+
+        private fun animateHeaderClick() {
+            containerCard.animate()
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(100)
+                .withEndAction {
+                    containerCard.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(100)
+                        .start()
+                }
+                .start()
+        }
+    }
+
+    // ViewHolder for collapsed islands
+    inner class CollapsedIslandViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val nameText: TextView = itemView.findViewById(R.id.collapsedIslandName)
+        private val tabCountText: TextView = itemView.findViewById(R.id.collapsedIslandTabCount)
+        private val containerCard: CardView = itemView.findViewById(R.id.collapsedIslandCard)
+
+        fun bind(island: TabIsland, tabCount: Int) {
+            nameText.text = island.name
+            tabCountText.text = "$tabCount"
+
+            // Apply island color
+            val gradient = GradientDrawable().apply {
+                cornerRadius = 24f
+                setColor(island.color)
+                alpha = 200
+            }
+            containerCard.background = gradient
+            containerCard.elevation = 8f
+
+            // Click to expand
+            containerCard.setOnClickListener {
+                onIslandHeaderClick(island.id)
+                animateExpand()
+            }
+
+            // Long press for options
+            containerCard.setOnLongClickListener {
+                onIslandLongPress(island.id)
+                itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                true
+            }
+        }
+
+        private fun animateExpand() {
+            containerCard.animate()
+                .scaleX(1.1f)
+                .scaleY(1.1f)
+                .setDuration(100)
+                .withEndAction {
+                    containerCard.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(100)
+                        .start()
+                }
+                .start()
         }
     }
 
@@ -280,52 +469,49 @@ class ModernTabPillAdapter(
         val size = 64
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        
-        // Beautiful gradient background
+
         val domain = try {
             java.net.URL(url).host?.removePrefix("www.") ?: url
         } catch (e: Exception) {
             url
         }
-        
+
         val colors = intArrayOf(
             0xFF6200EE.toInt(),
             0xFF03DAC6.toInt()
         )
-        
+
         val gradient = RadialGradient(
             size / 2f, size / 2f, size / 2f,
             colors, null, Shader.TileMode.CLAMP
         )
-        
+
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = gradient
         }
-        
-        // Draw circle with gradient
+
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
-        
-        // Draw letter with beautiful typography
+
         val letter = domain.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-        
+
         paint.apply {
             shader = null
             color = Color.WHITE
             textSize = size * 0.45f
             textAlign = Paint.Align.CENTER
-            typeface = android.graphics.Typeface.create("google-sans", android.graphics.Typeface.BOLD)
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
         }
-        
+
         val textBounds = Rect()
         paint.getTextBounds(letter, 0, letter.length, textBounds)
-        
+
         canvas.drawText(
             letter,
             size / 2f,
             size / 2f - textBounds.exactCenterY(),
             paint
         )
-        
+
         return bitmap
     }
 }

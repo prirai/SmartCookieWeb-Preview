@@ -18,8 +18,8 @@ import mozilla.components.browser.state.state.SessionState
 import kotlinx.coroutines.*
 
 /**
- * Revolutionary tab group view with pill design, drag-to-reorder, 
- * and beautiful animations. Shows favicon + title in elegant pills.
+ * Enhanced tab group view with Tab Islands support - automatic and manual grouping,
+ * colored pills, drag-to-reorder, collapse/expand, and beautiful animations.
  */
 class EnhancedTabGroupView @JvmOverloads constructor(
     context: Context,
@@ -28,48 +28,63 @@ class EnhancedTabGroupView @JvmOverloads constructor(
 ) : RecyclerView(context, attrs, defStyleAttr) {
 
     private lateinit var tabAdapter: ModernTabPillAdapter
+    private lateinit var islandManager: TabIslandManager
+
     private var onTabSelected: ((String) -> Unit)? = null
     private var onTabClosed: ((String) -> Unit)? = null
+    private var onIslandRenamed: ((String, String) -> Unit)? = null
+
     private var currentTabs = mutableListOf<SessionState>()
     private var selectedTabId: String? = null
-    
-    // Visual grouping colors
-    private val groupColors = listOf(
-        0xFFE57373, 0xFF81C784, 0xFF64B5F6, 0xFFFFB74D,
-        0xFFAED581, 0xFFFFD54F, 0xFF90A4AE, 0xFFF06292
-    ).map { it.toInt() }
+
+    // Track last update to prevent unnecessary refreshes
+    private var lastTabIds = emptyList<String>()
+    private var lastSelectedId: String? = null
+    private var lastDisplayItemsCount = 0
+
+    // Track parent-child relationships for automatic grouping
+    private val pendingAutoGroups = mutableMapOf<String, String>()
 
     init {
         setupRecyclerView()
         setupItemTouchHelper()
+        setupIslandManager()
     }
 
     private fun setupRecyclerView() {
         layoutManager = LinearLayoutManager(context, HORIZONTAL, false)
         tabAdapter = ModernTabPillAdapter(
-            onTabClick = { tabId -> 
+            onTabClick = { tabId ->
                 onTabSelected?.invoke(tabId)
                 animateSelection(tabId)
             },
-            onTabClose = { tabId -> 
-                onTabClosed?.invoke(tabId)
-                animateTabRemoval(tabId)
+            onTabClose = { tabId ->
+                handleTabClose(tabId)
+            },
+            onIslandHeaderClick = { islandId ->
+                handleIslandHeaderClick(islandId)
+            },
+            onIslandLongPress = { islandId ->
+                handleIslandLongPress(islandId)
             }
         )
         adapter = tabAdapter
-        
-        // CRITICAL: Fix the layout to be a small horizontal bar
+
+        // Layout configuration
         clipToPadding = false
         overScrollMode = OVER_SCROLL_NEVER
         setPadding(4, 2, 4, 2)
-        
-        // CRITICAL: Proper height for tab pills to be visible
+
         layoutParams = android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            120 // Increased height to ensure pills are visible
+            120
         )
-        
+
         elevation = 2f
+    }
+
+    private fun setupIslandManager() {
+        islandManager = TabIslandManager.getInstance(context)
     }
 
     private fun setupItemTouchHelper() {
@@ -77,6 +92,10 @@ class EnhancedTabGroupView @JvmOverloads constructor(
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
             ItemTouchHelper.UP
         ) {
+            private var draggedTabId: String? = null
+            private var lastTargetPosition = -1
+            private var lastTargetView: View? = null
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -84,94 +103,447 @@ class EnhancedTabGroupView @JvmOverloads constructor(
             ): Boolean {
                 val fromPosition = viewHolder.adapterPosition
                 val toPosition = target.adapterPosition
-                
-                // Animate the move
-                tabAdapter.moveTab(fromPosition, toPosition)
-                
-                // Update our internal list
-                val movedTab = currentTabs.removeAt(fromPosition)
-                currentTabs.add(toPosition, movedTab)
-                
-                return true
+
+                // Get the dragged tab
+                val draggedTab = draggedTabId?.let { id -> currentTabs.find { it.id == id } }
+
+                // Visual feedback - highlight target
+                if (lastTargetPosition != toPosition) {
+                    // Remove previous highlight
+                    lastTargetView?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(150)?.start()
+
+                    // Add new highlight
+                    target.itemView.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.alpha(0.7f)?.setDuration(150)?.start()
+                    lastTargetView = target.itemView
+                    lastTargetPosition = toPosition
+                }
+
+                // Handle different target types
+                when (target) {
+                    is ModernTabPillAdapter.TabPillViewHolder -> {
+                        // Dragging onto another tab - instant grouping
+                        if (draggedTab != null && viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
+                            val targetTab = currentTabs.getOrNull(toPosition)
+                            if (targetTab != null && draggedTab.id != targetTab.id) {
+                                // Instant group creation with haptic feedback
+                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                createIslandInstantly(draggedTab.id, targetTab.id)
+                                return false // Don't continue drag after grouping
+                            }
+                        }
+                        return false
+                    }
+
+                    is ModernTabPillAdapter.IslandHeaderViewHolder -> {
+                        // Dragging onto island header - add to island
+                        if (draggedTab != null) {
+                            val displayItems = islandManager.createDisplayItems(currentTabs)
+                            val headerItem = displayItems.getOrNull(toPosition)
+                            if (headerItem is TabPillItem.IslandHeader) {
+                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                islandManager.addTabToIsland(draggedTab.id, headerItem.island.id)
+                                refreshDisplay()
+                                return false
+                            }
+                        }
+                        return false
+                    }
+
+                    is ModernTabPillAdapter.CollapsedIslandViewHolder -> {
+                        // Dragging onto collapsed island - add to island
+                        if (draggedTab != null) {
+                            val displayItems = islandManager.createDisplayItems(currentTabs)
+                            val collapsedItem = displayItems.getOrNull(toPosition)
+                            if (collapsedItem is TabPillItem.CollapsedIsland) {
+                                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                islandManager.addTabToIsland(draggedTab.id, collapsedItem.island.id)
+                                refreshDisplay()
+                                return false
+                            }
+                        }
+                        return false
+                    }
+
+                    else -> return false
+                }
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 if (direction == ItemTouchHelper.UP) {
-                    val position = viewHolder.adapterPosition
-                    if (position != RecyclerView.NO_POSITION && position < currentTabs.size) {
-                        val tabToClose = currentTabs[position]
-                        android.util.Log.d("TabPillDebug", "🗑️ Swiped up to close tab: ${tabToClose.id}")
-                        onTabClosed?.invoke(tabToClose.id)
+                    if (viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
+                        val displayItems = islandManager.createDisplayItems(currentTabs)
+                        val position = viewHolder.adapterPosition
+                        if (position in displayItems.indices) {
+                            val item = displayItems[position]
+                            if (item is TabPillItem.Tab) {
+                                handleTabClose(item.session.id)
+                            }
+                        }
                     }
                 }
             }
 
             override fun isLongPressDragEnabled(): Boolean = true
             override fun isItemViewSwipeEnabled(): Boolean = true
-            
+
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)
-                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
-                    viewHolder?.itemView?.animate()?.scaleX(1.1f)?.scaleY(1.1f)?.start()
+
+                when (actionState) {
+                    ItemTouchHelper.ACTION_STATE_DRAG -> {
+                        // Visual feedback for dragged item
+                        viewHolder?.itemView?.animate()
+                            ?.scaleX(1.15f)
+                            ?.scaleY(1.15f)
+                            ?.alpha(0.85f)
+                            ?.setDuration(150)
+                            ?.start()
+
+                        // Store dragged tab ID
+                        if (viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
+                            val displayItems = islandManager.createDisplayItems(currentTabs)
+                            val position = viewHolder.adapterPosition
+                            if (position in displayItems.indices) {
+                                val item = displayItems[position]
+                                if (item is TabPillItem.Tab) {
+                                    draggedTabId = item.session.id
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                }
+                            }
+                        }
+                    }
+
+                    ItemTouchHelper.ACTION_STATE_IDLE -> {
+                        // Clear drag state
+                        draggedTabId = null
+                        lastTargetPosition = -1
+                        lastTargetView = null
+                    }
                 }
             }
-            
+
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                viewHolder.itemView.animate().scaleX(1f).scaleY(1f).start()
+
+                // Reset all visual states
+                viewHolder.itemView.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start()
+
+                lastTargetView?.animate()
+                    ?.scaleX(1f)
+                    ?.scaleY(1f)
+                    ?.alpha(1f)
+                    ?.setDuration(200)
+                    ?.start()
+
+                // Clear state
+                draggedTabId = null
+                lastTargetPosition = -1
+                lastTargetView = null
+            }
+
+            override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                // Only allow dragging tab pills, not island headers or collapsed islands
+                val dragFlags = if (viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
+                    ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+                } else {
+                    0
+                }
+
+                val swipeFlags = if (viewHolder is ModernTabPillAdapter.TabPillViewHolder) {
+                    ItemTouchHelper.UP
+                } else {
+                    0
+                }
+
+                return makeMovementFlags(dragFlags, swipeFlags)
             }
         })
-        
+
         itemTouchHelper.attachToRecyclerView(this)
+    }
+
+    private fun createIslandInstantly(tabId1: String, tabId2: String) {
+        // Check if either tab is already in an island
+        val island1 = islandManager.getIslandForTab(tabId1)
+        val island2 = islandManager.getIslandForTab(tabId2)
+
+        when {
+            island1 != null && island2 == null -> {
+                // Tab1 in island, add tab2 to it
+                islandManager.addTabToIsland(tabId2, island1.id)
+            }
+
+            island2 != null && island1 == null -> {
+                // Tab2 in island, add tab1 to it
+                islandManager.addTabToIsland(tabId1, island2.id)
+            }
+
+            island1 == null && island2 == null -> {
+                // Neither in island, create new one
+                islandManager.createIsland(listOf(tabId1, tabId2))
+            }
+
+            island1 != null && island2 != null && island1.id != island2.id -> {
+                // Both in different islands, merge into island2
+                islandManager.addTabToIsland(tabId1, island2.id)
+            }
+            // If both in same island, do nothing
+        }
+
+        refreshDisplay()
+        showIslandCreatedFeedback()
     }
 
     fun setup(
         onTabSelected: (String) -> Unit,
-        onTabClosed: (String) -> Unit
+        onTabClosed: (String) -> Unit,
+        onIslandRenamed: ((String, String) -> Unit)? = null
     ) {
         this.onTabSelected = onTabSelected
         this.onTabClosed = onTabClosed
-        tabAdapter.updateCallbacks(onTabSelected, onTabClosed)
+        this.onIslandRenamed = onIslandRenamed
+        tabAdapter.updateCallbacks(
+            onTabSelected,
+            { tabId -> handleTabClose(tabId) },
+            { islandId -> handleIslandHeaderClick(islandId) },
+            { islandId -> handleIslandLongPress(islandId) }
+        )
     }
 
     fun updateTabs(tabs: List<SessionState>, selectedId: String?) {
-        android.util.Log.d("TabPillDebug", "📋 updateTabs called: ${tabs.size} tabs, selectedId: $selectedId")
+        // Check if anything actually changed to prevent flickering
+        val currentTabIds = tabs.map { it.id }
+        val hasTabsChanged = currentTabIds != lastTabIds
+        val hasSelectionChanged = selectedId != lastSelectedId
+
+        // Check if tab content (title, URL, icon) has changed
+        val hasContentChanged = tabs.any { newTab ->
+            val oldTab = currentTabs.find { it.id == newTab.id }
+            oldTab == null ||
+                    oldTab.content.title != newTab.content.title ||
+                    oldTab.content.url != newTab.content.url ||
+                    oldTab.content.icon != newTab.content.icon
+        }
+
+        // If nothing changed, don't update
+        if (!hasTabsChanged && !hasSelectionChanged && !hasContentChanged) {
+            return
+        }
+
         selectedTabId = selectedId
-        
-        // Debug tab information
-        tabs.forEachIndexed { index, tab ->
-            android.util.Log.d("TabPillDebug", "Tab $index: id=${tab.id}, title='${tab.content.title}', url='${tab.content.url}'")
-        }
-        
-        // Only show if we have multiple tabs
+        lastTabIds = currentTabIds
+        lastSelectedId = selectedId
+
         val shouldShow = tabs.size > 1
-        android.util.Log.d("TabPillDebug", "shouldShow: $shouldShow, currentTabs.size: ${currentTabs.size}")
-        
-        if (shouldShow && currentTabs != tabs) {
-            android.util.Log.d("TabPillDebug", "✅ Updating adapter with ${tabs.size} tabs")
-            currentTabs.clear()
-            currentTabs.addAll(tabs)
-            
-            tabAdapter.updateTabs(tabs, selectedId, groupColors)
+
+        if (shouldShow) {
+            // Update if tabs changed, content changed, or selection changed
+            if (hasTabsChanged || hasContentChanged || currentTabs.isEmpty()) {
+                currentTabs.clear()
+                currentTabs.addAll(tabs)
+
+                // Create display items with island information
+                val displayItems = islandManager.createDisplayItems(tabs)
+
+                // Update adapter with fresh display items
+                lastDisplayItemsCount = displayItems.size
+                tabAdapter.updateDisplayItems(displayItems, selectedId)
+            } else if (hasSelectionChanged) {
+                // Only selection changed, just update that
+                val displayItems = islandManager.createDisplayItems(tabs)
+                tabAdapter.updateDisplayItems(displayItems, selectedId)
+            }
+
             animateVisibility(true)
-        } else if (!shouldShow) {
-            android.util.Log.d("TabPillDebug", "❌ Hiding tab pills - only ${tabs.size} tabs")
-            animateVisibility(false)
         } else {
-            android.util.Log.d("TabPillDebug", "⚠️ Not updating - tabs haven't changed or shouldShow is false")
+            animateVisibility(false)
         }
+    }
+
+    /**
+     * Records a parent-child relationship for potential automatic grouping
+     */
+    fun recordTabParent(childTabId: String, parentTabId: String) {
+        pendingAutoGroups[childTabId] = parentTabId
+    }
+
+    /**
+     * Attempts to automatically group a new tab with its parent
+     */
+    fun autoGroupNewTab(newTabId: String) {
+        val parentTabId = pendingAutoGroups.remove(newTabId) ?: return
+
+        // Try to add to parent's island
+        val parentIsland = islandManager.getIslandForTab(parentTabId)
+        if (parentIsland != null) {
+            islandManager.addTabToIsland(newTabId, parentIsland.id)
+            refreshDisplay()
+        }
+    }
+
+    /**
+     * Manually creates an island from selected tabs
+     */
+    fun createIslandFromTabs(tabIds: List<String>, name: String? = null) {
+        if (tabIds.size < 2) return
+
+        islandManager.createIsland(tabIds, name)
+        refreshDisplay()
+        showIslandCreatedFeedback()
+    }
+
+    /**
+     * Groups tabs by domain
+     */
+    fun groupTabsByDomain() {
+        val islands = islandManager.groupTabsByDomain(currentTabs)
+        if (islands.isNotEmpty()) {
+            refreshDisplay()
+            showIslandCreatedFeedback()
+        }
+    }
+
+    private fun handleTabClose(tabId: String) {
+        // Notify island manager to clean up
+        islandManager.onTabClosed(tabId)
+
+        // Notify parent component
+        onTabClosed?.invoke(tabId)
+
+        // Refresh display
+        refreshDisplay()
+        animateTabRemoval(tabId)
+    }
+
+    private fun handleIslandHeaderClick(islandId: String) {
+        // Toggle collapse/expand
+        islandManager.toggleIslandCollapse(islandId)
+
+        // Force full refresh by clearing state and rebuilding display items
+        lastTabIds = emptyList()
+        lastDisplayItemsCount = 0
+
+        // Create fresh display items with updated island state
+        val displayItems = islandManager.createDisplayItems(currentTabs)
+        lastDisplayItemsCount = displayItems.size
+        lastTabIds = currentTabs.map { it.id }
+
+        // Update adapter with new display items
+        tabAdapter.updateDisplayItems(displayItems, selectedTabId)
+    }
+
+    private fun handleIslandLongPress(islandId: String) {
+        // Show island options dialog (rename, ungroup, close all)
+        showIslandOptionsDialog(islandId)
+    }
+
+    private fun showIslandOptionsDialog(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val dialog = android.app.AlertDialog.Builder(context)
+            .setTitle(island.name)
+            .setItems(
+                arrayOf(
+                    "Rename Island",
+                    "Ungroup All Tabs",
+                    "Close All Tabs",
+                    "Cancel"
+                )
+            ) { _, which ->
+                when (which) {
+                    0 -> showRenameIslandDialog(islandId)
+                    1 -> ungroupIsland(islandId)
+                    2 -> closeAllTabsInIsland(islandId)
+                }
+            }
+            .create()
+
+        dialog.show()
+    }
+
+    private fun showRenameIslandDialog(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val input = android.widget.EditText(context).apply {
+            setText(island.name)
+            selectAll()
+        }
+
+        val dialog = android.app.AlertDialog.Builder(context)
+            .setTitle("Rename Island")
+            .setView(input)
+            .setPositiveButton("Rename") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotBlank()) {
+                    islandManager.renameIsland(islandId, newName)
+                    onIslandRenamed?.invoke(islandId, newName)
+                    refreshDisplay()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.show()
+
+        // Show keyboard
+        input.requestFocus()
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun ungroupIsland(islandId: String) {
+        islandManager.deleteIsland(islandId)
+        refreshDisplay()
+    }
+
+    private fun closeAllTabsInIsland(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        // Close all tabs in the island
+        island.tabIds.forEach { tabId ->
+            onTabClosed?.invoke(tabId)
+        }
+
+        // Clean up island
+        islandManager.deleteIsland(islandId)
+        refreshDisplay()
+    }
+
+
+    private fun refreshDisplay() {
+        // Force refresh by clearing last state and recreating display items
+        lastTabIds = emptyList()
+        lastDisplayItemsCount = 0
+
+        // Recreate display items from current state
+        val displayItems = islandManager.createDisplayItems(currentTabs)
+        lastDisplayItemsCount = displayItems.size
+        lastTabIds = currentTabs.map { it.id }
+
+        // Update adapter
+        tabAdapter.updateDisplayItems(displayItems, selectedTabId)
+    }
+
+    private fun showIslandCreatedFeedback() {
+        // Haptic feedback
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
     }
 
     private fun animateVisibility(shouldShow: Boolean) {
         if (shouldShow == (visibility == VISIBLE)) return
-        
+
         if (shouldShow) {
             visibility = VISIBLE
             alpha = 0f
             translationY = -height.toFloat()
             scaleX = 0.95f
             scaleY = 0.95f
-            
+
             animate()
                 .alpha(1f)
                 .translationY(0f)
@@ -193,7 +565,6 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     }
 
     private fun animateSelection(tabId: String) {
-        // Find the selected item and animate it
         for (i in 0 until childCount) {
             val childView = getChildAt(i)
             val viewHolder = getChildViewHolder(childView)
@@ -218,7 +589,6 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     }
 
     private fun animateTabRemoval(tabId: String) {
-        // Find and animate the removed item
         for (i in 0 until childCount) {
             val childView = getChildAt(i)
             val viewHolder = getChildViewHolder(childView)
@@ -238,14 +608,32 @@ class EnhancedTabGroupView @JvmOverloads constructor(
     }
 
     fun getCurrentTabCount(): Int = currentTabs.size
-    
+
     fun getSelectedTabPosition(): Int {
         return currentTabs.indexOfFirst { it.id == selectedTabId }
     }
 
+    fun getAllIslands(): List<TabIsland> {
+        return islandManager.getAllIslands()
+    }
+
+    fun collapseAllIslands() {
+        getAllIslands().forEach { island ->
+            islandManager.collapseIsland(island.id)
+        }
+        refreshDisplay()
+    }
+
+    fun expandAllIslands() {
+        getAllIslands().forEach { island ->
+            islandManager.expandIsland(island.id)
+        }
+        refreshDisplay()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        
+
         // Draw subtle background gradient
         val gradient = LinearGradient(
             0f, 0f, width.toFloat(), 0f,

@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/tabPillCard"
     android:layout_width="wrap_content"
-    android:layout_height="36dp"
+    android:layout_height="match_parent"
     android:layout_marginHorizontal="2dp"
     android:layout_marginVertical="2dp">
     android:clickable="true"
@@ -17,8 +17,7 @@
     <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:minWidth="120dp"
-        android:minHeight="32dp">
+        android:minWidth="120dp">
         android:paddingStart="6dp"
         android:paddingTop="2dp"
         android:paddingEnd="4dp"

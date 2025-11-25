@@ -270,19 +270,19 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                     val currentTab = state.tabs.find { it.id == state.selectedTabId }
                     currentTab
                 }.ifAnyChanged { tab ->
-                        arrayOf(
-                            tab.content.loading,
-                            tab.content.canGoBack,
-                            tab.content.canGoForward,
-                            tab.content.url,
-                            tab.id
-                        )
-                    }.collect {
-                        // Update toolbar when navigation state changes (only if fragment is still attached)
-                        if (isAdded && view != null) {
-                            updateContextualToolbar()
-                        }
+                    arrayOf(
+                        tab.content.loading,
+                        tab.content.canGoBack,
+                        tab.content.canGoForward,
+                        tab.content.url,
+                        tab.id
+                    )
+                }.collect {
+                    // Update toolbar when navigation state changes (only if fragment is still attached)
+                    if (isAdded && view != null) {
+                        updateContextualToolbar()
                     }
+                }
             }
         }
 
@@ -290,11 +290,11 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         viewLifecycleOwner.lifecycleScope.launch {
             requireContext().components.store.flowScoped { flow ->
                 flow.distinctUntilChangedBy { it.selectedTabId }.collect {
-                        // Update toolbar when tab selection changes (only if fragment is still attached)
-                        if (isAdded && view != null) {
-                            updateContextualToolbar()
-                        }
+                    // Update toolbar when tab selection changes (only if fragment is still attached)
+                    if (isAdded && view != null) {
+                        updateContextualToolbar()
                     }
+                }
             }
         }
     }
@@ -512,6 +512,9 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
     }
 
     private fun observeTabChangesForModernToolbar() {
+        // Track last known tab IDs for detecting new tabs
+        var lastTabIds = emptySet<String>()
+
         // Simplified observation without complex flows for now
         viewLifecycleOwner.lifecycleScope.launch {
             val store = requireContext().components.store
@@ -520,6 +523,24 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             while (true) {
                 try {
                     val state = store.state
+
+                    // Detect new tabs for auto-grouping
+                    val currentTabIds = state.tabs.map { it.id }.toSet()
+                    val newTabIds = currentTabIds - lastTabIds
+
+                    // Auto-group new tabs with their parent
+                    newTabIds.forEach { newTabId ->
+                        val newTab = state.tabs.find { it.id == newTabId }
+                        val parentId = newTab?.parentId
+                        if (parentId != null) {
+                            // Record parent-child relationship for island auto-grouping
+                            modernToolbarManager?.recordTabParent(newTabId, parentId)
+                            modernToolbarManager?.autoGroupNewTab(newTabId)
+                        }
+                    }
+
+                    lastTabIds = currentTabIds
+
                     modernToolbarManager?.updateTabs(state.tabs, state.selectedTabId)
 
                     // Update navigation state
@@ -532,7 +553,7 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                         modernToolbarManager?.updateLoadingState(tab.content.loading)
                     }
 
-                    // Update modern toolbar with current context  
+                    // Update modern toolbar with current context
                     val currentState = store.state
                     val currentSelectedTab =
                         currentState.tabs.find { it.id == currentState.selectedTabId }
