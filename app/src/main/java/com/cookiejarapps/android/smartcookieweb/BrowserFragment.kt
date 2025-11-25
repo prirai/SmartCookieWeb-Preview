@@ -341,7 +341,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
 
 
         } catch (e: Exception) {
-            android.util.Log.e("ModernToolbar", "❌ Failed to initialize modern toolbar system", e)
             // Fallback to the simple fix
             applySimpleScrollBehaviorFix()
         }
@@ -505,7 +504,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                         com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarMenu.Item.Bookmarks
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("BookmarkDebug", "❌ Error in bookmark action handler", e)
                 }
             }
         }

@@ -452,14 +452,12 @@ class AppRequestInterceptor(val context: Context) : RequestInterceptor {
                 val currentDomain = extractDomain(lastUri)
                 val targetDomain = extractDomain(newUri)
                 
-                android.util.Log.d("LinkInterceptor", "Link click: $currentDomain -> $targetDomain")
                 
                 // If domains are different, open in new tab and group
                 if (currentDomain != targetDomain && 
                     currentDomain != "unknown" && 
                     targetDomain != "unknown") {
                     
-                    android.util.Log.d("LinkInterceptor", "Cross-domain link detected, creating new tab")
                     
                     // Create new tab for cross-domain link
                     CoroutineScope(Dispatchers.Main).launch {
@@ -481,22 +479,18 @@ class AppRequestInterceptor(val context: Context) : RequestInterceptor {
                                 sourceTabUrl = lastUri
                             )
                             
-                            android.util.Log.d("LinkInterceptor", "Created new grouped tab: $newTabId")
                         } catch (e: Exception) {
-                            android.util.Log.e("LinkInterceptor", "Error creating grouped tab: ${e.message}")
                         }
                     }
                     
                     // Return true to deny the original navigation (prevent same-tab navigation)
                     return true
                 } else {
-                    android.util.Log.d("LinkInterceptor", "Same domain link, allowing normal navigation")
                     // Same domain - allow normal navigation in current tab
                     return false
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.d("LinkInterceptor", "Error in link interception: ${e.message}")
         }
         
         return false

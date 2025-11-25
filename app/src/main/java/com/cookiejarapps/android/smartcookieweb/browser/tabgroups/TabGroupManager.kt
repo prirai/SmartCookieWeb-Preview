@@ -91,9 +91,7 @@ class TabGroupManager(private val context: Context) {
         }
         processedTabs.add(tabUrlKey)
 
-        android.util.Log.d("TabGroupManager", "autoGroupTab called: tabId=$tabId, url=$url")
         if (!shouldAutoGroup(url)) {
-            android.util.Log.d("TabGroupManager", "Skipping auto-grouping for URL: $url")
             return
         }
 
@@ -237,10 +235,6 @@ class TabGroupManager(private val context: Context) {
         sourceTabId: String?,
         sourceTabUrl: String?
     ) {
-        android.util.Log.d(
-            "TabGroupManager",
-            "handleNewTabFromLink called: newTab=$newTabId, newUrl=$newTabUrl, sourceTab=$sourceTabId, sourceUrl=$sourceTabUrl"
-        )
         // Only proceed if we have source information
         if (sourceTabId == null || sourceTabUrl == null) {
             // Fallback to normal auto-grouping
@@ -322,7 +316,6 @@ class TabGroupManager(private val context: Context) {
      * Updates the current tab context to refresh tab group bar.
      */
     suspend fun updateCurrentTabContext(tabId: String) {
-        android.util.Log.d("TabGroupManager", "updateCurrentTabContext called for tabId: $tabId")
         val groupId = dao.getGroupIdForTab(tabId)
         if (groupId != null) {
             val group = dao.getGroupById(groupId)

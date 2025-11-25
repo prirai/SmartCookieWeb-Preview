@@ -187,32 +187,25 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
     }
 
     override fun onShowMenu(v: View, position: Int) {
-        android.util.Log.d("BookmarksBottomSheet", "onShowMenu called for position: $position")
         val item = currentFolder[position]
-        android.util.Log.d("BookmarksBottomSheet", "Item: ${item.javaClass.simpleName} - ${item.title}")
         
         // Create context menu with bookmark actions
         try {
-            android.util.Log.d("BookmarksBottomSheet", "Creating popup menu for ${item.javaClass.simpleName}")
             val popup = androidx.appcompat.widget.PopupMenu(requireContext(), v)
             
             val menuRes = when (item) {
                 is BookmarkSiteItem -> {
-                    android.util.Log.d("BookmarksBottomSheet", "Using bookmark_site_menu")
                     R.menu.bookmark_site_menu
                 }
                 is BookmarkFolderItem -> {
-                    android.util.Log.d("BookmarksBottomSheet", "Using bookmark_folder_menu")
                     R.menu.bookmark_folder_menu
                 }
                 else -> {
-                    android.util.Log.e("BookmarksBottomSheet", "Unknown item type, returning")
                     return
                 }
             }
             
             popup.menuInflater.inflate(menuRes, popup.menu)
-            android.util.Log.d("BookmarksBottomSheet", "Menu inflated, showing popup")
         
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
@@ -278,9 +271,7 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
             }
             
             popup.show()
-            android.util.Log.d("BookmarksBottomSheet", "Popup menu shown successfully")
         } catch (e: Exception) {
-            android.util.Log.e("BookmarksBottomSheet", "Error showing popup menu", e)
         }
     }
 
@@ -358,7 +349,6 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
                     // Refresh the bookmark list
                     setBookmarkList(currentFolder)
                 } catch (e: Exception) {
-                    android.util.Log.e("BookmarksBottomSheet", "Error deleting bookmark", e)
                     // Handle deletion error - show user feedback
                     android.widget.Toast.makeText(
                         requireContext(), 
@@ -407,7 +397,6 @@ class BookmarksBottomSheetFragment : BottomSheetDialogFragment(), BookmarkAdapte
             ).show()
             
         } catch (e: Exception) {
-            android.util.Log.e("BookmarksBottomSheet", "Error moving bookmark", e)
             android.widget.Toast.makeText(
                 requireContext(), 
                 "Error moving bookmark", 

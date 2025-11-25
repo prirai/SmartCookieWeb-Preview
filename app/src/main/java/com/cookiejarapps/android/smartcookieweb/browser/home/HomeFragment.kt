@@ -793,7 +793,6 @@ class HomeFragment : Fragment() {
         // Update shortcuts header color
         binding.shortcutName.setTextColor(ContextCompat.getColor(requireContext(), R.color.photonWhite))
         
-        android.util.Log.d("HomeFragment", "Applied private browsing theme")
     }
     
     private fun setupNormalBrowsingTheme() {
@@ -812,7 +811,6 @@ class HomeFragment : Fragment() {
         // Remove text color overrides to respect XML/theme defaults
         // Let the XML handle theme-aware text colors
         
-        android.util.Log.d("HomeFragment", "Applied theme-aware normal browsing (respecting XML)")
     }
 
     companion object {

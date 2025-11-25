@@ -74,12 +74,9 @@ abstract class AddBookmarkDialog<S : BookmarkItem, T>(
                     }
                 
                 // Show the bottom sheet (need fragment manager from context)
-                android.util.Log.d("AddBookmarkDialog", "Context type: ${context::class.java.simpleName}")
                 if (context is androidx.fragment.app.FragmentActivity) {
-                    android.util.Log.d("AddBookmarkDialog", "Showing modern folder selection bottom sheet")
                     folderSelectionSheet.show(context.supportFragmentManager, "FolderSelectionBottomSheet")
                 } else {
-                    android.util.Log.d("AddBookmarkDialog", "Context is not FragmentActivity, falling back to old dialog")
                     // Fallback to old dialog if context isn't FragmentActivity
                     BookmarkFoldersDialog(context, mManager)
                         .setTitle(R.string.folder)

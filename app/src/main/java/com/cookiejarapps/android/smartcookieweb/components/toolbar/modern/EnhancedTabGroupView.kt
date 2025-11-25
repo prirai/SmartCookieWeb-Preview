@@ -412,12 +412,6 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         val hasContentChanged = tabs.any { newTab ->
             val oldTab = currentTabs.find { it.id == newTab.id }
             val titleChanged = oldTab?.content?.title != newTab.content.title
-            if (titleChanged) {
-                android.util.Log.d(
-                    "TabGroupView",
-                    "Title changed for tab ${newTab.id}: '${oldTab?.content?.title}' -> '${newTab.content.title}' (URL: ${newTab.content.url}, loading: ${newTab.content.loading})"
-                )
-            }
             oldTab == null ||
                     oldTab.content.title != newTab.content.title ||
                     oldTab.content.url != newTab.content.url ||

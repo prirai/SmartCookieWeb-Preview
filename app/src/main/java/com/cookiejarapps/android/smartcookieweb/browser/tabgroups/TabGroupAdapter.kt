@@ -161,14 +161,12 @@ class TabGroupAdapter(
                         if (v.isPressed) {
                             v.isPressed = false
                             v.performClick()
-                            android.util.Log.d("TabGroupAdapter", "Close button clicked for tab: ${tab.id}")
                             // Close the tab
                             CoroutineScope(Dispatchers.Main).launch {
                                 try {
                                     val tabsUseCases = context.components.tabsUseCases
                                     tabsUseCases.removeTab(tab.id)
                                 } catch (e: Exception) {
-                                    android.util.Log.e("TabGroupAdapter", "Error closing tab: ${e.message}")
                                 }
                             }
                         }
@@ -235,14 +233,9 @@ class TabGroupAdapter(
                         if (deltaX <= tapSlop && deltaY <= tapSlop && deltaTime <= tapTimeout && v.isPressed) {
                             v.isPressed = false
                             v.performClick()
-                            android.util.Log.d("TabGroupAdapter", "Tab tapped (not dragged): $tabId")
                             onTabClick(tabId)
                         } else {
                             v.isPressed = false
-                            android.util.Log.d(
-                                "TabGroupAdapter",
-                                "Tab drag detected, not switching. deltaX=$deltaX, deltaY=$deltaY, deltaTime=$deltaTime"
-                            )
                         }
                         true
                     }

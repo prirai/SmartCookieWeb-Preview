@@ -314,7 +314,6 @@ class ModernTabPillAdapter(
                         faviconView.setImageBitmap(favicon)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("TabPillAdapter", "Error loading favicon", e)
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }
@@ -685,7 +684,6 @@ class ModernTabPillAdapter(
                         faviconView.setImageBitmap(favicon)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("TabPillAdapter", "Error loading favicon for group tab", e)
                     faviconView.setImageResource(R.drawable.ic_language)
                 }
             }

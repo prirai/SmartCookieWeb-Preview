@@ -30,7 +30,6 @@ class ModernScrollBehavior(
         // Find and connect to the EngineView
         findEngineView(parent)?.let { engine ->
             child.setEngineView(engine)
-            android.util.Log.d("ModernScrollBehavior", "Connected to EngineView")
         }
         
         return super.onLayoutChild(parent, child, layoutDirection)
@@ -59,7 +58,6 @@ class ModernScrollBehavior(
         if (!isScrollingEnabled) return
         
         val toolbarHeight = child.getTotalHeight()
-        android.util.Log.d("ModernScrollBehavior", "onNestedPreScroll: dy=$dy, toolbarHeight=$toolbarHeight, currentOffset=${child.getCurrentOffset()}")
         
         if (toolbarHeight <= 0) {
             android.util.Log.w("ModernScrollBehavior", "Toolbar height is 0 - cannot apply scroll behavior")
@@ -74,7 +72,6 @@ class ModernScrollBehavior(
         
         if (newOffset != child.getCurrentOffset()) {
             child.setToolbarOffset(newOffset)
-            android.util.Log.v("ModernScrollBehavior", "Applied offset: $newOffset")
         }
     }
 
@@ -95,7 +92,6 @@ class ModernScrollBehavior(
             val currentOffset = child.getCurrentOffset()
             val threshold = toolbarHeight * snapThreshold
             
-            android.util.Log.d("ModernScrollBehavior", "onNestedScroll: dyUnconsumed=$dyUnconsumed, toolbarHeight=$toolbarHeight, currentOffset=$currentOffset, threshold=$threshold")
             
             // Only trigger if we have a valid toolbar height
             if (toolbarHeight > 0) {
@@ -103,13 +99,11 @@ class ModernScrollBehavior(
                     dyUnconsumed > 0 && currentOffset > threshold -> {
                         // Scrolling down fast or past threshold - hide completely
                         child.collapse()
-                        android.util.Log.d("ModernScrollBehavior", "Smart collapse triggered (offset=$currentOffset, threshold=$threshold)")
                     }
                     dyUnconsumed < 0 -> {
                         // FIXED: Any upward scroll should show the toolbar when it's hidden
                         if (currentOffset > 0) {
                             child.expand()
-                            android.util.Log.d("ModernScrollBehavior", "Smart expand triggered - scrolling up (offset=$currentOffset)")
                         }
                     }
                 }
@@ -133,10 +127,8 @@ class ModernScrollBehavior(
         if (currentOffset in 1 until toolbarHeight) {
             if (currentOffset < midpoint) {
                 child.expand()
-                android.util.Log.d("ModernScrollBehavior", "Final snap to expanded")
             } else {
                 child.collapse()
-                android.util.Log.d("ModernScrollBehavior", "Final snap to collapsed")
             }
         }
     }
@@ -174,7 +166,6 @@ class ModernScrollBehavior(
 
     fun setScrollingEnabled(enabled: Boolean) {
         isScrollingEnabled = enabled
-        android.util.Log.d("ModernScrollBehavior", "Scrolling ${if (enabled) "enabled" else "disabled"}")
     }
 
     fun setSnapThreshold(threshold: Float) {

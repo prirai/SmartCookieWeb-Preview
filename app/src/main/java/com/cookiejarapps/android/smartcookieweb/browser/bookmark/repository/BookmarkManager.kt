@@ -52,7 +52,6 @@ class BookmarkManager private constructor(context: Context) : Serializable {
                 return true
             }
         } catch (e: IOException) {
-            Log.d("BookmarkManager", e.toString())
         }
         return false
     }
@@ -68,7 +67,6 @@ class BookmarkManager private constructor(context: Context) : Serializable {
                 return true
             }
         } catch (e: IOException) {
-            Log.d("BookmarkManager", e.toString())
         }
 
         return false

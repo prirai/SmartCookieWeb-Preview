@@ -65,7 +65,6 @@ class BrowserToolbarView(
         }
         
         container.addView(toolbarContainer, layoutParams)
-        android.util.Log.d("BrowserToolbar", "Added BottomToolbarContainerView with CoordinatorLayout.LayoutParams")
         
         inflatedView
     } else {
@@ -89,7 +88,6 @@ class BrowserToolbarView(
     // Get the actual container for bottom toolbar
     private val toolbarContainer: View? = if (toolbarLayout == R.layout.component_bottom_browser_toolbar) {
         val container = layout.findViewById<View>(R.id.toolbarContainer)
-        android.util.Log.d("BrowserToolbar", "toolbarContainer found: ${container?.javaClass?.simpleName ?: "null"}")
         container ?: layout
     } else null
 
@@ -249,15 +247,12 @@ class BrowserToolbarView(
      * @param shouldDisableScroll force disable of the dynamic behavior irrespective of the intrinsic checks.
      */
     fun setToolbarBehavior(shouldDisableScroll: Boolean = false) {
-        android.util.Log.d("BrowserToolbar", "setToolbarBehavior: position=${settings.toolbarPosition}, hideBarWhileScrolling=${settings.hideBarWhileScrolling}, isPwaTabOrTwaTab=$isPwaTabOrTwaTab, shouldDisableScroll=$shouldDisableScroll")
         
         when (settings.toolbarPosition) {
             ToolbarPosition.BOTTOM.ordinal -> {
                 if (settings.hideBarWhileScrolling && !isPwaTabOrTwaTab) {
-                    android.util.Log.d("BrowserToolbar", "Setting dynamic behavior for BOTTOM toolbar")
                     setDynamicToolbarBehavior(MozacToolbarPosition.BOTTOM)
                 } else {
-                    android.util.Log.d("BrowserToolbar", "Making BOTTOM toolbar fixed")
                     expandToolbarAndMakeItFixed()
                 }
             }
@@ -265,10 +260,8 @@ class BrowserToolbarView(
                 if (!settings.hideBarWhileScrolling ||
                     shouldDisableScroll
                 ) {
-                    android.util.Log.d("BrowserToolbar", "Making TOP toolbar fixed")
                     expandToolbarAndMakeItFixed()
                 } else {
-                    android.util.Log.d("BrowserToolbar", "Setting dynamic behavior for TOP toolbar")
                     setDynamicToolbarBehavior(MozacToolbarPosition.TOP)
                 }
             }
@@ -299,11 +292,9 @@ class BrowserToolbarView(
             view
         }
         
-        android.util.Log.d("BrowserToolbar", "setDynamicToolbarBehavior: position=$toolbarPosition, targetView=${targetView.javaClass.simpleName}, layoutParams=${targetView.layoutParams?.javaClass?.simpleName}")
         
         (targetView.layoutParams as? CoordinatorLayout.LayoutParams)?.apply {
             behavior = EngineViewScrollingBehavior(targetView.context, null, toolbarPosition)
-            android.util.Log.d("BrowserToolbar", "Applied EngineViewScrollingBehavior to ${targetView.javaClass.simpleName}")
         } ?: android.util.Log.w("BrowserToolbar", "Failed to apply behavior - layoutParams is not CoordinatorLayout.LayoutParams")
     }
 

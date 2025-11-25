@@ -247,10 +247,6 @@ class ModernContextualToolbar @JvmOverloads constructor(
         this.currentTabCount = tabCount
         this.isHomepage = isHomepage
 
-        android.util.Log.d(
-            "ModernContextualToolbar",
-            "📱 Context update: homepage=$isHomepage, canBack=$canGoBack, canForward=$canGoForward, tabs=$tabCount"
-        )
 
         when {
             isHomepage -> showModernHomepageContext(tabCount, canGoForward)
@@ -266,7 +262,6 @@ class ModernContextualToolbar @JvmOverloads constructor(
      * Homepage context: bookmarks, forward(enabled/disabled), search, tabs, menu
      */
     private fun showModernHomepageContext(tabCount: Int, canGoForward: Boolean = false) {
-        android.util.Log.d("ModernContextualToolbar", "🏠 Showing homepage context")
 
         // Always show the toolbar on homepage
         this.visibility = View.VISIBLE
@@ -299,7 +294,6 @@ class ModernContextualToolbar @JvmOverloads constructor(
      * Website context: back, share, new tab, tabs, menu
      */
     private fun showModernWebsiteContext(canGoBack: Boolean, tabCount: Int) {
-        android.util.Log.d("ModernContextualToolbar", "🌐 Showing website context")
 
         // Show: back, share, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
@@ -329,7 +323,6 @@ class ModernContextualToolbar @JvmOverloads constructor(
      * Full navigation context: back, forward, new tab, tabs, menu
      */
     private fun showModernFullNavigationContext(tabCount: Int) {
-        android.util.Log.d("ModernContextualToolbar", "🔄 Showing full navigation context")
 
         // Show: back, forward, new tab, tabs, menu
         backButton.visibility = View.VISIBLE
@@ -360,7 +353,6 @@ class ModernContextualToolbar @JvmOverloads constructor(
      * Default/fallback context
      */
     private fun showModernDefaultContext(tabCount: Int) {
-        android.util.Log.d("ModernContextualToolbar", "⚪ Showing default context")
 
         // Show basic navigation
         backButton.visibility = View.VISIBLE

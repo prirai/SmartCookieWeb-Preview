@@ -44,13 +44,10 @@ class TabGroupMiddleware(
         val newTab = action.tab
         val newTabUrl = newTab.content.url
         
-        // Add debug logging to see what's happening
-        android.util.Log.d("TabGroupMiddleware", "New tab added: ${newTab.id}, URL: $newTabUrl, Source: ${newTab.source}")
         
         // Don't auto-group tabs created via NEW_TAB button or address bar
         if (newTab.source == mozilla.components.browser.state.state.SessionState.Source.Internal.NewTab ||
             newTab.source == mozilla.components.browser.state.state.SessionState.Source.Internal.UserEntered) {
-            android.util.Log.d("TabGroupMiddleware", "Skipping grouping for manually created tab")
             return
         }
         
@@ -61,7 +58,6 @@ class TabGroupMiddleware(
             if (loadRequest.isNotBlank() && loadRequest != "about:blank") {
                 loadRequest
             } else {
-                android.util.Log.d("TabGroupMiddleware", "Skipping tab with blank URL: ${newTab.id}")
                 return
             }
         } else {
@@ -79,7 +75,6 @@ class TabGroupMiddleware(
             }
         }
         
-        android.util.Log.d("TabGroupMiddleware", "Source tab: ${sourceTab?.id}, URL: ${sourceTab?.content?.url}")
         
         if (sourceTab != null) {
             val sourceUrl = sourceTab.content.url
@@ -89,13 +84,11 @@ class TabGroupMiddleware(
                 val sourceDomain = extractDomain(sourceUrl)
                 val newDomain = extractDomain(effectiveUrl)
                 
-                android.util.Log.d("TabGroupMiddleware", "Domain comparison: $sourceDomain -> $newDomain")
                 
                 if (sourceDomain != newDomain && 
                     sourceDomain != "unknown" && 
                     newDomain != "unknown") {
                     
-                    android.util.Log.d("TabGroupMiddleware", "Cross-domain detected, creating group")
                     
                     // This appears to be a cross-domain link - group them
                     CoroutineScope(Dispatchers.IO).launch {
@@ -111,12 +104,9 @@ class TabGroupMiddleware(
                         }
                     }
                 } else {
-                    android.util.Log.d("TabGroupMiddleware", "Same domain or unknown, skipping grouping")
                     // For same domain, don't force grouping unless it's a natural fit
                 }
             }
-        } else {
-            android.util.Log.d("TabGroupMiddleware", "No source tab found, skipping grouping")
         }
     }
     

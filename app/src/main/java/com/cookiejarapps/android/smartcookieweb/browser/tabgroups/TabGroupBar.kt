@@ -87,10 +87,6 @@ class TabGroupBar @JvmOverloads constructor(
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                     super.onScrollStateChanged(recyclerView, newState)
                     isScrolling = newState != RecyclerView.SCROLL_STATE_IDLE
-                    android.util.Log.d(
-                        "TabGroupBar",
-                        "Scroll state changed: ${if (isScrolling) "SCROLLING" else "IDLE"}"
-                    )
                 }
             })
 
@@ -144,7 +140,6 @@ class TabGroupBar @JvmOverloads constructor(
     private fun setupScrollBehaviorIfNeeded() {
         val prefs = com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences(context)
         if (prefs.hideBarWhileScrolling && height > 0) {
-            android.util.Log.d("TabGroupBar", "Setting up scroll behavior, height: $height")
             (layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.apply {
                 if (behavior == null) {
                     behavior = mozilla.components.ui.widgets.behavior.EngineViewScrollingBehavior(
@@ -152,7 +147,6 @@ class TabGroupBar @JvmOverloads constructor(
                         null,
                         mozilla.components.ui.widgets.behavior.ViewPosition.BOTTOM
                     )
-                    android.util.Log.d("TabGroupBar", "Applied scroll behavior to tab group bar")
                 }
             }
         }

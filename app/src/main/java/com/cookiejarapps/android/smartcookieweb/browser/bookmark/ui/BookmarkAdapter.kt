@@ -71,14 +71,10 @@ open class BookmarkAdapter(
     }
 
     protected fun onOverflowButtonClick(v: View, position: Int, item: BookmarkItem) {
-        android.util.Log.d("BookmarkAdapter", "onOverflowButtonClick called - position: $position, item: ${item.title}")
         val calPosition = searchPosition(position, item)
-        android.util.Log.d("BookmarkAdapter", "Calculated position: $calPosition")
         if (calPosition < 0){
-            android.util.Log.e("BookmarkAdapter", "Invalid calculated position: $calPosition")
             return
         }
-        android.util.Log.d("BookmarkAdapter", "Calling onShowMenu")
         bookmarkItemListener.onShowMenu(v, calPosition)
     }
 
