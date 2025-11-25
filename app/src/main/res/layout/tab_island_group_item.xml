@@ -70,23 +70,12 @@
 
         </LinearLayout>
 
-        <!-- Separator line between header and tabs -->
-        <View
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_marginVertical="4dp"
-            android:background="?android:attr/textColorSecondary"
-            android:alpha="0.2"
-        />
-
         <!-- Container for tab pills (will be populated dynamically) -->
         <LinearLayout
             android:id="@+id/islandTabsContainer"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:paddingStart="4dp"
-            android:paddingEnd="8dp"
         />
 
     </LinearLayout>

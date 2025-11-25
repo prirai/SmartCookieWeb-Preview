@@ -75,7 +75,22 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         overScrollMode = OVER_SCROLL_NEVER
         setPadding(4, 2, 4, 2)
 
+        // Set theme-aware background color
+        val backgroundColor = if (isDarkMode()) {
+            androidx.core.content.ContextCompat.getColor(context, android.R.color.background_dark)
+        } else {
+            androidx.core.content.ContextCompat.getColor(context, android.R.color.background_light)
+        }
+        setBackgroundColor(backgroundColor)
+
         elevation = 2f
+    }
+
+    private fun isDarkMode(): Boolean {
+        return when (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) {
+            android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
+            else -> false
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -172,6 +187,11 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                                     is TabPillItem.CollapsedIsland -> {
                                         targetView = child
                                         targetTabId = "collapsed_${item.island.id}"
+                                    }
+
+                                    is TabPillItem.ExpandedIslandGroup -> {
+                                        targetView = child
+                                        targetTabId = "island_${item.island.id}"
                                     }
                                 }
                             }

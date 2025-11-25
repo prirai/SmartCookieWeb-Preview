@@ -97,7 +97,12 @@ class ModernTabPillAdapter(
             }
 
             is TabPillItem.ExpandedIslandGroup -> {
-                (holder as ExpandedIslandGroupViewHolder).bind(item.island, item.tabs)
+                val viewHolder = holder as ExpandedIslandGroupViewHolder
+                viewHolder.bind(item.island, item.tabs)
+                // Update selection state for tabs in the group
+                if (selectedTabId != null) {
+                    viewHolder.updateTabSelection(selectedTabId!!, item.island)
+                }
             }
         }
     }
@@ -116,12 +121,24 @@ class ModernTabPillAdapter(
         if (!itemsChanged && oldSelectedId != selectedId) {
             // Find and update only the selected/deselected items
             displayItems.forEachIndexed { index, item ->
-                if (item is TabPillItem.Tab) {
-                    val wasSelected = item.session.id == oldSelectedId
-                    val isSelected = item.session.id == selectedId
-                    if (wasSelected || isSelected) {
-                        notifyItemChanged(index)
+                when (item) {
+                    is TabPillItem.Tab -> {
+                        val wasSelected = item.session.id == oldSelectedId
+                        val isSelected = item.session.id == selectedId
+                        if (wasSelected || isSelected) {
+                            notifyItemChanged(index)
+                        }
                     }
+
+                    is TabPillItem.ExpandedIslandGroup -> {
+                        // Check if any tab in the group was selected/deselected
+                        val hasSelectedTab = item.tabs.any { it.id == oldSelectedId || it.id == selectedId }
+                        if (hasSelectedTab) {
+                            notifyItemChanged(index)
+                        }
+                    }
+
+                    else -> {}
                 }
             }
             return
@@ -293,7 +310,7 @@ class ModernTabPillAdapter(
                 // Selected: Vibrant pill with island color or default
                 val color = islandColor ?: 0xFF6200EE.toInt()
                 val gradient = GradientDrawable().apply {
-                    cornerRadius = 24f
+                    cornerRadius = 18f
                     setColor(color)
                     alpha = 230
                 }
@@ -442,9 +459,9 @@ class ModernTabPillAdapter(
 
             // Apply island color
             val gradient = GradientDrawable().apply {
-                cornerRadius = 24f
+                cornerRadius = 20f
                 setColor(island.color)
-                alpha = 200
+                alpha = 255
             }
             containerCard.background = gradient
             containerCard.elevation = 8f
@@ -511,20 +528,61 @@ class ModernTabPillAdapter(
             // Clear previous tabs
             tabsContainer.removeAllViews()
 
-            // Add each tab pill to the container
-            tabs.forEach { tab ->
-                val tabView = createTabPillView(tab, island)
+            // Add each tab to the container
+            tabs.forEachIndexed { index, tab ->
+                val tabView = createTabPillView(tab, island, index)
+                // Store tab ID as tag for later updates
+                tabView.tag = tab.id
                 tabsContainer.addView(tabView)
             }
         }
 
-        private fun createTabPillView(tab: SessionState, island: TabIsland): View {
-            val tabView = LayoutInflater.from(itemView.context)
-                .inflate(R.layout.modern_tab_pill_item, tabsContainer, false)
+        fun updateTabSelection(tabId: String, island: TabIsland) {
+            // Update selection state for tabs in this group
+            for (i in 0 until tabsContainer.childCount) {
+                val tabView = tabsContainer.getChildAt(i)
+                val storedTabId = tabView.tag as? String
+                if (storedTabId != null) {
+                    val tabContent: ViewGroup = tabView.findViewById(R.id.tabPillContent)
+                    val titleView: TextView = tabView.findViewById(R.id.tabTitle)
+                    val faviconView: ImageView = tabView.findViewById(R.id.tabFavicon)
 
-            val cardView: CardView = tabView.findViewById(R.id.tabPillCard)
+                    val isSelected = storedTabId == tabId
+                    if (isSelected) {
+                        // Selected tab: highlight with island color
+                        val gradient = GradientDrawable().apply {
+                            cornerRadius = 0f
+                            setColor(island.color)
+                        }
+                        tabContent.background = gradient
+                        titleView.setTextColor(Color.WHITE)
+                        faviconView.alpha = 1.0f
+                    } else {
+                        // Unselected tab: transparent background
+                        tabContent.setBackgroundColor(Color.TRANSPARENT)
+                        val textColor = if (isDarkMode()) {
+                            ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark_nodisable)
+                        } else {
+                            ContextCompat.getColor(itemView.context, android.R.color.primary_text_light_nodisable)
+                        }
+                        titleView.setTextColor(textColor)
+                        faviconView.alpha = 0.8f
+                    }
+                }
+            }
+        }
+
+        private fun createTabPillView(tab: SessionState, island: TabIsland, index: Int): View {
+            val tabView = LayoutInflater.from(itemView.context)
+                .inflate(R.layout.tab_pill_in_group, tabsContainer, false)
+
+            val separator: View = tabView.findViewById(R.id.tabSeparator)
+            val tabContent: ViewGroup = tabView.findViewById(R.id.tabPillContent)
             val faviconView: ImageView = tabView.findViewById(R.id.tabFavicon)
             val titleView: TextView = tabView.findViewById(R.id.tabTitle)
+
+            // Show separator for all tabs (acts as divider from header/previous tab)
+            separator.visibility = View.VISIBLE
 
             // Set title
             val title = tab.content.title.takeIf { !it.isNullOrBlank() }
@@ -532,62 +590,147 @@ class ModernTabPillAdapter(
                 ?: "New Tab"
             titleView.text = title
 
-            // Load favicon
-            val existingIcon = tab.content.icon
-            if (existingIcon != null) {
-                faviconView.setImageBitmap(existingIcon)
-            } else {
-                scope.launch {
-                    try {
-                        val favicon = withContext(Dispatchers.IO) {
-                            generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
-                        }
-                        faviconView.setImageBitmap(favicon)
-                    } catch (e: Exception) {
-                        faviconView.setImageResource(R.drawable.ic_language)
-                    }
-                }
-            }
+            // Load favicon - check content icon, then cache, then generate
+            loadFaviconForGroupTab(tab, faviconView)
 
-            // Apply styling
+            // Apply styling based on selection
             val isSelected = tab.id == selectedTabId
             if (isSelected) {
+                // Selected tab: highlight with island color using gradient drawable
                 val gradient = GradientDrawable().apply {
-                    cornerRadius = 24f
+                    cornerRadius = 0f
                     setColor(island.color)
-                    alpha = 230
                 }
-                cardView.background = gradient
-                cardView.elevation = 12f
+                tabContent.background = gradient
                 titleView.setTextColor(Color.WHITE)
+                faviconView.alpha = 1.0f
             } else {
-                val backgroundColor = if (isDarkMode()) {
-                    ContextCompat.getColor(itemView.context, android.R.color.background_dark)
-                } else {
-                    ContextCompat.getColor(itemView.context, android.R.color.background_light)
-                }
-                val gradient = GradientDrawable().apply {
-                    cornerRadius = 20f
-                    setColor(backgroundColor)
-                    setStroke(3, island.color)
-                }
-                cardView.background = gradient
-                cardView.elevation = 4f
+                // Unselected tab: transparent background
+                tabContent.setBackgroundColor(Color.TRANSPARENT)
                 val textColor = if (isDarkMode()) {
                     ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark_nodisable)
                 } else {
                     ContextCompat.getColor(itemView.context, android.R.color.primary_text_light_nodisable)
                 }
                 titleView.setTextColor(textColor)
+                faviconView.alpha = 0.8f
             }
 
             // Click handler
-            cardView.setOnClickListener {
+            tabContent.setOnClickListener {
                 onTabClick(tab.id)
                 itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             }
 
+            // Add swipe-up gesture for delete
+            setupSwipeToDelete(tabView, tabContent, tab.id)
+
             return tabView
+        }
+
+        private fun loadFaviconForGroupTab(tab: SessionState, faviconView: ImageView) {
+            // Try to get favicon from tab content first
+            val existingIcon = tab.content.icon
+            if (existingIcon != null) {
+                faviconView.setImageBitmap(existingIcon)
+                return
+            }
+
+            // Try to get from favicon cache
+            try {
+                val context = itemView.context
+                val faviconCache = com.cookiejarapps.android.smartcookieweb.utils.FaviconCache.getInstance(context)
+                val cachedFavicon = faviconCache.getFaviconFromMemory(tab.content.url ?: "")
+
+                if (cachedFavicon != null) {
+                    faviconView.setImageBitmap(cachedFavicon)
+                    return
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("TabPillAdapter", "Could not access FaviconCache for group tab", e)
+            }
+
+            // Fallback to generated favicon
+            scope.launch {
+                try {
+                    val favicon = withContext(Dispatchers.IO) {
+                        generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                    }
+                    faviconView.setImageBitmap(favicon)
+                } catch (e: Exception) {
+                    faviconView.setImageResource(R.drawable.ic_language)
+                }
+            }
+        }
+
+        private fun setupSwipeToDelete(tabView: View, tabContent: ViewGroup, tabId: String) {
+            var startY = 0f
+            var startX = 0f
+            var isDragging = false
+
+            tabContent.setOnTouchListener { v, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        startY = event.rawY
+                        startX = event.rawX
+                        isDragging = false
+                        false
+                    }
+
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val deltaY = startY - event.rawY
+                        val deltaX = Math.abs(event.rawX - startX)
+
+                        // Only start drag if moving upward and not too much horizontal movement
+                        if (deltaY > 20 && deltaX < 50 && !isDragging) {
+                            isDragging = true
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        }
+
+                        if (isDragging) {
+                            // Visual feedback - move the tab up
+                            tabView.translationY = -deltaY
+                            tabView.alpha = 1f - (deltaY / 200f).coerceIn(0f, 0.5f)
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                        if (isDragging) {
+                            val deltaY = startY - event.rawY
+
+                            if (deltaY > 100) {
+                                // Threshold met - delete the tab
+                                tabView.animate()
+                                    .translationY(-300f)
+                                    .alpha(0f)
+                                    .setDuration(200)
+                                    .withEndAction {
+                                        onTabClose(tabId)
+                                    }
+                                    .start()
+                            } else {
+                                // Threshold not met - spring back
+                                tabView.animate()
+                                    .translationY(0f)
+                                    .alpha(1f)
+                                    .setDuration(200)
+                                    .start()
+                            }
+                            isDragging = false
+                            true
+                        } else {
+                            // Not dragging, let click handler work
+                            v.performClick()
+                            false
+                        }
+                    }
+
+                    else -> false
+                }
+            }
         }
 
         private fun animateHeaderClick() {
