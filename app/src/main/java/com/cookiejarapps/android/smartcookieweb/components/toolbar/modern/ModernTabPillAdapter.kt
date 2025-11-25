@@ -39,6 +39,7 @@ class ModernTabPillAdapter(
         private const val VIEW_TYPE_TAB = 0
         private const val VIEW_TYPE_ISLAND_HEADER = 1
         private const val VIEW_TYPE_COLLAPSED_ISLAND = 2
+        private const val VIEW_TYPE_EXPANDED_ISLAND_GROUP = 3
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -46,6 +47,7 @@ class ModernTabPillAdapter(
             is TabPillItem.Tab -> VIEW_TYPE_TAB
             is TabPillItem.IslandHeader -> VIEW_TYPE_ISLAND_HEADER
             is TabPillItem.CollapsedIsland -> VIEW_TYPE_COLLAPSED_ISLAND
+            is TabPillItem.ExpandedIslandGroup -> VIEW_TYPE_EXPANDED_ISLAND_GROUP
         }
     }
 
@@ -69,6 +71,12 @@ class ModernTabPillAdapter(
                 CollapsedIslandViewHolder(view)
             }
 
+            VIEW_TYPE_EXPANDED_ISLAND_GROUP -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.tab_island_group_item, parent, false)
+                ExpandedIslandGroupViewHolder(view)
+            }
+
             else -> throw IllegalArgumentException("Unknown view type: $viewType")
         }
     }
@@ -86,6 +94,10 @@ class ModernTabPillAdapter(
 
             is TabPillItem.CollapsedIsland -> {
                 (holder as CollapsedIslandViewHolder).bind(item.island, item.tabCount)
+            }
+
+            is TabPillItem.ExpandedIslandGroup -> {
+                (holder as ExpandedIslandGroupViewHolder).bind(item.island, item.tabs)
             }
         }
     }
@@ -163,6 +175,11 @@ class ModernTabPillAdapter(
             item1 is TabPillItem.CollapsedIsland && item2 is TabPillItem.CollapsedIsland ->
                 item1.island.id == item2.island.id &&
                         item1.tabCount == item2.tabCount &&
+                        item1.island.name == item2.island.name
+
+            item1 is TabPillItem.ExpandedIslandGroup && item2 is TabPillItem.ExpandedIslandGroup ->
+                item1.island.id == item2.island.id &&
+                        item1.tabs.map { it.id } == item2.tabs.map { it.id } &&
                         item1.island.name == item2.island.name
 
             else -> false
@@ -459,6 +476,140 @@ class ModernTabPillAdapter(
                         .start()
                 }
                 .start()
+        }
+    }
+
+    // ViewHolder for expanded island groups (header + tabs as one unit)
+    inner class ExpandedIslandGroupViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val nameText: TextView = itemView.findViewById(R.id.islandName)
+        private val colorIndicator: View = itemView.findViewById(R.id.islandColorIndicator)
+        private val collapseButton: ImageView = itemView.findViewById(R.id.islandCollapseButton)
+        private val headerSection: ViewGroup = itemView.findViewById(R.id.islandHeaderSection)
+        private val tabsContainer: ViewGroup = itemView.findViewById(R.id.islandTabsContainer)
+        private val groupCard: CardView = itemView.findViewById(R.id.islandGroupCard)
+
+        fun bind(island: TabIsland, tabs: List<SessionState>) {
+            nameText.text = island.name
+            colorIndicator.setBackgroundColor(island.color)
+
+            // Update collapse button icon
+            collapseButton.setImageResource(R.drawable.ic_expand_less)
+
+            // Setup header click for collapse
+            headerSection.setOnClickListener {
+                onIslandHeaderClick(island.id)
+                animateHeaderClick()
+            }
+
+            // Long press for rename/options
+            headerSection.setOnLongClickListener {
+                onIslandLongPress(island.id)
+                itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                true
+            }
+
+            // Clear previous tabs
+            tabsContainer.removeAllViews()
+
+            // Add each tab pill to the container
+            tabs.forEach { tab ->
+                val tabView = createTabPillView(tab, island)
+                tabsContainer.addView(tabView)
+            }
+        }
+
+        private fun createTabPillView(tab: SessionState, island: TabIsland): View {
+            val tabView = LayoutInflater.from(itemView.context)
+                .inflate(R.layout.modern_tab_pill_item, tabsContainer, false)
+
+            val cardView: CardView = tabView.findViewById(R.id.tabPillCard)
+            val faviconView: ImageView = tabView.findViewById(R.id.tabFavicon)
+            val titleView: TextView = tabView.findViewById(R.id.tabTitle)
+
+            // Set title
+            val title = tab.content.title.takeIf { !it.isNullOrBlank() }
+                ?: tab.content.url.takeIf { !it.isNullOrBlank() }
+                ?: "New Tab"
+            titleView.text = title
+
+            // Load favicon
+            val existingIcon = tab.content.icon
+            if (existingIcon != null) {
+                faviconView.setImageBitmap(existingIcon)
+            } else {
+                scope.launch {
+                    try {
+                        val favicon = withContext(Dispatchers.IO) {
+                            generateBeautifulFavicon(tab.content.url ?: "", itemView.context)
+                        }
+                        faviconView.setImageBitmap(favicon)
+                    } catch (e: Exception) {
+                        faviconView.setImageResource(R.drawable.ic_language)
+                    }
+                }
+            }
+
+            // Apply styling
+            val isSelected = tab.id == selectedTabId
+            if (isSelected) {
+                val gradient = GradientDrawable().apply {
+                    cornerRadius = 24f
+                    setColor(island.color)
+                    alpha = 230
+                }
+                cardView.background = gradient
+                cardView.elevation = 12f
+                titleView.setTextColor(Color.WHITE)
+            } else {
+                val backgroundColor = if (isDarkMode()) {
+                    ContextCompat.getColor(itemView.context, android.R.color.background_dark)
+                } else {
+                    ContextCompat.getColor(itemView.context, android.R.color.background_light)
+                }
+                val gradient = GradientDrawable().apply {
+                    cornerRadius = 20f
+                    setColor(backgroundColor)
+                    setStroke(3, island.color)
+                }
+                cardView.background = gradient
+                cardView.elevation = 4f
+                val textColor = if (isDarkMode()) {
+                    ContextCompat.getColor(itemView.context, android.R.color.primary_text_dark_nodisable)
+                } else {
+                    ContextCompat.getColor(itemView.context, android.R.color.primary_text_light_nodisable)
+                }
+                titleView.setTextColor(textColor)
+            }
+
+            // Click handler
+            cardView.setOnClickListener {
+                onTabClick(tab.id)
+                itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            }
+
+            return tabView
+        }
+
+        private fun animateHeaderClick() {
+            headerSection.animate()
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(100)
+                .withEndAction {
+                    headerSection.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(100)
+                        .start()
+                }
+                .start()
+        }
+
+        private fun isDarkMode(): Boolean {
+            return when (itemView.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) {
+                android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
+                else -> false
+            }
         }
     }
 

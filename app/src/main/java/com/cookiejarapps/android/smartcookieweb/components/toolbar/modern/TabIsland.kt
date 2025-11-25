@@ -165,4 +165,12 @@ sealed class TabPillItem {
         val island: TabIsland,
         val tabCount: Int
     ) : TabPillItem()
+
+    /**
+     * An expanded island group showing header and all child tabs as one unit
+     */
+    data class ExpandedIslandGroup(
+        val island: TabIsland,
+        val tabs: List<SessionState>
+    ) : TabPillItem()
 }

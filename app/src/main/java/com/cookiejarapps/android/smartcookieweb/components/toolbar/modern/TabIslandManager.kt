@@ -303,25 +303,16 @@ class TabIslandManager(private val context: Context) {
                             )
                         )
                     } else {
-                        // Show island header followed by tabs
-                        displayItems.add(TabPillItem.IslandHeader(island, false))
-
-                        // Add all tabs in this island, maintaining their order within the island
-                        island.tabIds.forEachIndexed { index, tabId ->
-                            val tabSession = tabs.find { it.id == tabId }
-                            if (tabSession != null) {
-                                displayItems.add(
-                                    TabPillItem.Tab(
-                                        session = tabSession,
-                                        islandId = island.id,
-                                        islandColor = island.color,
-                                        isFirst = index == 0,
-                                        isLast = index == island.tabIds.size - 1
-                                    )
-                                )
-                                processedTabs.add(tabId)
-                            }
+                        // Show expanded island group (header + tabs as one unit)
+                        val islandTabs = island.tabIds.mapNotNull { tabId ->
+                            tabs.find { it.id == tabId }
                         }
+                        displayItems.add(
+                            TabPillItem.ExpandedIslandGroup(
+                                island = island,
+                                tabs = islandTabs
+                            )
+                        )
                     }
 
                     // Mark all island tabs as processed
