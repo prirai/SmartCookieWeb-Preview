@@ -41,6 +41,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
     private lateinit var islandManager: TabIslandManager
     private var isInitializing = true
     private var itemTouchHelper: ItemTouchHelper? = null
+    private var isUpdating = false
 
     companion object {
         const val TAG = "TabsBottomSheetFragment"
@@ -63,6 +64,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         setupUI()
         setupTabsAdapter()
         setupDragAndDrop()
+        setupStoreObserver()
         updateTabsDisplay()
     }
 
@@ -361,6 +363,79 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         animator.start()
     }
 
+    private fun setupStoreObserver() {
+        // Observe browser store state changes to auto-update tab list
+        viewLifecycleOwner.lifecycleScope.launch {
+            val store = requireContext().components.store
+            var lastTabIds = emptySet<String>()
+            var lastSelectedTabId: String? = null
+
+            // Poll for state changes
+            while (true) {
+                try {
+                    val state = store.state
+                    val currentTabIds = state.tabs.map { it.id }.toSet()
+                    val currentSelectedTabId = state.selectedTabId
+
+                    // Update if tabs changed or selection changed
+                    if (currentTabIds != lastTabIds || currentSelectedTabId != lastSelectedTabId) {
+                        updateTabsDisplayImmediate()
+                        lastTabIds = currentTabIds
+                        lastSelectedTabId = currentSelectedTabId
+                    }
+
+                    kotlinx.coroutines.delay(100) // Poll every 100ms
+                } catch (e: Exception) {
+                    // Fragment might be destroyed
+                    break
+                }
+            }
+        }
+    }
+
+    private fun updateTabsDisplayImmediate() {
+        if (!::tabsAdapter.isInitialized || isUpdating) return
+        isUpdating = true
+
+        val store = requireContext().components.store.state
+        val tabs = if (configuration.browserTabType == BrowserTabType.NORMAL) {
+            store.tabs.filter { !it.content.private }
+        } else {
+            store.tabs.filter { it.content.private }
+        }
+
+        // Get all islands from island manager
+        val allIslands = islandManager.getAllIslands()
+
+        // Filter islands that have tabs in current mode
+        val islandsWithTabs = allIslands.filter { island ->
+            island.tabIds.any { tabId -> tabs.any { it.id == tabId } }
+        }
+
+        // Get tabs not in any island
+        val tabsInIslands = islandsWithTabs.flatMap { it.tabIds }.toSet()
+        val ungroupedTabs = tabs.filter { it.id !in tabsInIslands }
+
+        // Update immediately without animation
+        tabsAdapter.updateData(
+            islands = islandsWithTabs,
+            ungroupedTabs = ungroupedTabs,
+            allTabs = tabs,
+            selectedTabId = store.selectedTabId
+        )
+
+        // Show/hide empty state
+        if (tabs.isEmpty()) {
+            binding.tabsRecyclerView.visibility = View.GONE
+            binding.emptyStateLayout.visibility = View.VISIBLE
+        } else {
+            binding.tabsRecyclerView.visibility = View.VISIBLE
+            binding.emptyStateLayout.visibility = View.GONE
+        }
+
+        isUpdating = false
+    }
+
     private fun updateTabsDisplay() {
         if (!::tabsAdapter.isInitialized) return
 
@@ -526,16 +601,14 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         val store = requireContext().components.store.state
         val tab = store.tabs.find { it.id == tabId } ?: return
 
-        requireContext().components.tabsUseCases.removeTab(tab.id)
-
         // Remove from island if it was in one
-        viewLifecycleOwner.lifecycleScope.launch {
-            val island = islandManager.getIslandForTab(tabId)
-            if (island != null) {
-                islandManager.removeTabFromIsland(tabId, island.id)
-            }
-            updateTabsDisplay()
+        val island = islandManager.getIslandForTab(tabId)
+        if (island != null) {
+            islandManager.removeTabFromIsland(tabId, island.id)
         }
+
+        // Close the tab - store observer will handle UI update automatically
+        requireContext().components.tabsUseCases.removeTab(tab.id)
     }
 
     private fun toggleIslandExpanded(islandId: String) {
