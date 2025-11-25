@@ -13,4 +13,7 @@
 
     <!-- Drag and drop -->
     <color name="drop_target_highlight">#4D00BCD4</color>
+
+    <!-- Selected tab highlight -->
+    <color name="selected_tab_highlight">#263238</color>
 </resources>

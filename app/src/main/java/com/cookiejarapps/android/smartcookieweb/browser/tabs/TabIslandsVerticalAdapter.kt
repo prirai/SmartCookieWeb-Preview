@@ -278,7 +278,11 @@ class TabIslandsVerticalAdapter(
 
             // Highlight selected tab
             itemView.alpha = if (isSelected) 1.0f else 0.7f
-            selectedIndicator.isVisible = isSelected
+            if (isSelected) {
+                selectedIndicator.setBackgroundResource(R.drawable.selected_tab_highlight_background)
+            } else {
+                selectedIndicator.background = null
+            }
 
             // Accessibility
             val islandInfo = if (island.name.isNotBlank()) {
@@ -343,7 +347,11 @@ class TabIslandsVerticalAdapter(
 
             // Highlight selected tab
             itemView.alpha = if (isSelected) 1.0f else 0.7f
-            selectedIndicator.isVisible = isSelected
+            if (isSelected) {
+                selectedIndicator.setBackgroundResource(R.drawable.selected_tab_highlight_background)
+            } else {
+                selectedIndicator.background = null
+            }
 
             // Hide group indicator for ungrouped tabs
             groupIndicator?.isVisible = false
