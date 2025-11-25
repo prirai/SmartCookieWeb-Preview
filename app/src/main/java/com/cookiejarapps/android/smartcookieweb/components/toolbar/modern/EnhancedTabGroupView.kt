@@ -579,8 +579,7 @@ class EnhancedTabGroupView @JvmOverloads constructor(
                 arrayOf(
                     "Rename Island",
                     "Ungroup All Tabs",
-                    "Close All Tabs",
-                    "Cancel"
+                    "Close All Tabs"
                 )
             ) { _, which ->
                 when (which) {

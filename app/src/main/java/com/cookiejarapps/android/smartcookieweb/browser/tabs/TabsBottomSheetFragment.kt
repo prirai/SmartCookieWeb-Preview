@@ -561,8 +561,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
         val options = arrayOf(
             getString(R.string.tab_island_rename),
-            getString(R.string.tab_island_delete),
-            if (island.isCollapsed) getString(R.string.tab_island_expand) else getString(R.string.tab_island_collapse)
+            getString(R.string.tab_island_ungroup),
+            getString(R.string.tab_island_close_all)
         )
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
@@ -570,8 +570,8 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showRenameIslandDialog(islandId)
-                    1 -> confirmDeleteIsland(islandId)
-                    2 -> toggleIslandExpanded(islandId)
+                    1 -> ungroupIsland(islandId)
+                    2 -> closeAllTabsInIsland(islandId)
                 }
             }
             .show()
@@ -599,23 +599,24 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             .show()
     }
 
-    private fun confirmDeleteIsland(islandId: String) {
-        val island = islandManager.getIsland(islandId) ?: return
-        val tabCount = island.size()
-
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle(R.string.tab_island_delete)
-            .setMessage(getString(R.string.delete_island_confirmation, tabCount))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                deleteIsland(islandId)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+    private fun ungroupIsland(islandId: String) {
+        islandManager.deleteIsland(islandId)
+        updateTabsDisplay()
     }
 
-    private fun deleteIsland(islandId: String) {
-        islandManager.deleteIsland(islandId)
-        // Animate the removal
+    private fun closeAllTabsInIsland(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        // Close all tabs in the island
+        island.tabIds.forEach { tabId ->
+            val store = requireContext().components.store.state
+            val tab = store.tabs.find { it.id == tabId }
+            if (tab != null) {
+                requireContext().components.tabsUseCases.removeTab(tab.id)
+            }
+        }
+
+        // Island will be cleaned up automatically
         updateTabsDisplay()
     }
 
