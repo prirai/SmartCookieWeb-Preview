@@ -394,6 +394,20 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     allTabs = tabs,
                     selectedTabId = store.selectedTabId
                 )
+
+                // Scroll to selected tab
+                store.selectedTabId?.let { selectedId ->
+                    val position = tabsAdapter.findPositionOfTab(selectedId)
+                    if (position != -1) {
+                        binding.tabsRecyclerView.post {
+                            (binding.tabsRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
+                                position,
+                                100
+                            )
+                        }
+                    }
+                }
+
                 binding.tabsRecyclerView.animate()
                     .alpha(1f)
                     .setDuration(50)

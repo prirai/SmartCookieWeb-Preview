@@ -167,6 +167,20 @@ class TabIslandsVerticalAdapter(
         }
     }
 
+    /**
+     * Find the position of a tab by its ID
+     */
+    fun findPositionOfTab(tabId: String): Int {
+        items.forEachIndexed { index, item ->
+            when (item) {
+                is ListItem.TabInIsland -> if (item.tab.id == tabId) return index
+                is ListItem.UngroupedTab -> if (item.tab.id == tabId) return index
+                else -> {}
+            }
+        }
+        return -1
+    }
+
     // Collapsed Island ViewHolder
     inner class CollapsedIslandViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val nameText: TextView = itemView.findViewById(R.id.collapsed_island_name)
