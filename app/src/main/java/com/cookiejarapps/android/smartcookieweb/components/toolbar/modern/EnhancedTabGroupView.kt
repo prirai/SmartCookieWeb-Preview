@@ -578,14 +578,16 @@ class EnhancedTabGroupView @JvmOverloads constructor(
             .setItems(
                 arrayOf(
                     "Rename Island",
+                    "Change Color",
                     "Ungroup All Tabs",
                     "Close All Tabs"
                 )
             ) { _, which ->
                 when (which) {
                     0 -> showRenameIslandDialog(islandId)
-                    1 -> ungroupIsland(islandId)
-                    2 -> closeAllTabsInIsland(islandId)
+                    1 -> showChangeColorDialog(islandId)
+                    2 -> ungroupIsland(islandId)
+                    3 -> closeAllTabsInIsland(islandId)
                 }
             }
             .create()
@@ -622,6 +624,55 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         input.requestFocus()
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun showChangeColorDialog(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val colors = TabIsland.DEFAULT_COLORS
+        val colorNames = arrayOf(
+            "Red", "Green", "Blue", "Orange", "Light Green",
+            "Yellow", "Grey", "Pink", "Purple", "Cyan", "Lime", "Deep Orange"
+        )
+
+        // Create a custom adapter to show colored circles
+        val adapter = object : android.widget.ArrayAdapter<String>(
+            context,
+            android.R.layout.select_dialog_item,
+            colorNames
+        ) {
+            override fun getView(
+                position: Int,
+                convertView: android.view.View?,
+                parent: android.view.ViewGroup
+            ): android.view.View {
+                val view = super.getView(position, convertView, parent)
+                val textView = view.findViewById<android.widget.TextView>(android.R.id.text1)
+
+                // Create colored indicator
+                val colorCircle = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(colors[position])
+                    setSize(48, 48)
+                }
+
+                textView.setCompoundDrawablesRelativeWithIntrinsicBounds(colorCircle, null, null, null)
+                textView.compoundDrawablePadding = 32
+
+                return view
+            }
+        }
+
+        val dialog = android.app.AlertDialog.Builder(context)
+            .setTitle("Choose Island Color")
+            .setAdapter(adapter) { _, which ->
+                islandManager.changeIslandColor(islandId, colors[which])
+                refreshDisplay()
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.show()
     }
 
     private fun ungroupIsland(islandId: String) {

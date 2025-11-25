@@ -43,6 +43,14 @@ data class TabIsland(
     )
 
     /**
+     * Creates a copy with updated color
+     */
+    fun withColor(newColor: Int): TabIsland = copy(
+        color = newColor,
+        lastModifiedAt = System.currentTimeMillis()
+    )
+
+    /**
      * Creates a copy with updated collapse state
      */
     fun withCollapsed(collapsed: Boolean): TabIsland = copy(

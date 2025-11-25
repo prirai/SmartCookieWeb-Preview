@@ -534,6 +534,8 @@
   <string name="tab_island_delete">Delete Island</string>
   <string name="tab_island_ungroup">Ungroup All Tabs</string>
   <string name="tab_island_close_all">Close All Tabs</string>
+  <string name="tab_island_change_color">Change Color</string>
+  <string name="tab_island_choose_color">Choose Island Color</string>
   <string name="tab_island_collapse">Collapse Island</string>
   <string name="tab_island_expand">Expand Island</string>
   <string name="tab_island_create_dialog_title">Create Tab Island?</string>

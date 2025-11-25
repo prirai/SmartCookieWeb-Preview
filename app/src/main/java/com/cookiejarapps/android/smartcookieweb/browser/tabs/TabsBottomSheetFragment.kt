@@ -561,6 +561,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
 
         val options = arrayOf(
             getString(R.string.tab_island_rename),
+            getString(R.string.tab_island_change_color),
             getString(R.string.tab_island_ungroup),
             getString(R.string.tab_island_close_all)
         )
@@ -570,8 +571,9 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showRenameIslandDialog(islandId)
-                    1 -> ungroupIsland(islandId)
-                    2 -> closeAllTabsInIsland(islandId)
+                    1 -> showChangeColorDialog(islandId)
+                    2 -> ungroupIsland(islandId)
+                    3 -> closeAllTabsInIsland(islandId)
                 }
             }
             .show()
@@ -594,6 +596,60 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 val newName = input.text.toString()
                 islandManager.renameIsland(islandId, newName)
                 updateTabsDisplay()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showChangeColorDialog(islandId: String) {
+        val island = islandManager.getIsland(islandId) ?: return
+
+        val colors = TabIsland.DEFAULT_COLORS
+        val colorNames = arrayOf(
+            "Red", "Green", "Blue", "Orange", "Light Green",
+            "Yellow", "Grey", "Pink", "Purple", "Cyan", "Lime", "Deep Orange"
+        )
+
+        // Create a custom adapter to show colored circles
+        val adapter = object : android.widget.ArrayAdapter<String>(
+            requireContext(),
+            android.R.layout.select_dialog_item,
+            colorNames
+        ) {
+            override fun getView(
+                position: Int,
+                convertView: android.view.View?,
+                parent: android.view.ViewGroup
+            ): android.view.View {
+                val view = super.getView(position, convertView, parent)
+                val textView = view.findViewById<android.widget.TextView>(android.R.id.text1)
+
+                // Create colored indicator
+                val colorCircle = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(colors[position])
+                    setSize(48, 48)
+                }
+
+                textView.setCompoundDrawablesRelativeWithIntrinsicBounds(colorCircle, null, null, null)
+                textView.compoundDrawablePadding = 32
+
+                return view
+            }
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.tab_island_choose_color)
+            .setAdapter(adapter) { _, which ->
+                islandManager.changeIslandColor(islandId, colors[which])
+                updateTabsDisplay()
+
+                // Trigger toolbar refresh by forcing a store state notification
+                val store = requireContext().components.store.state
+                val selectedTabId = store.selectedTabId
+                if (selectedTabId != null) {
+                    requireContext().components.tabsUseCases.selectTab(selectedTabId)
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

@@ -189,17 +189,20 @@ class ModernTabPillAdapter(
             item1 is TabPillItem.IslandHeader && item2 is TabPillItem.IslandHeader ->
                 item1.island.id == item2.island.id &&
                         item1.island.isCollapsed == item2.island.isCollapsed &&
-                        item1.island.name == item2.island.name
+                        item1.island.name == item2.island.name &&
+                        item1.island.color == item2.island.color
 
             item1 is TabPillItem.CollapsedIsland && item2 is TabPillItem.CollapsedIsland ->
                 item1.island.id == item2.island.id &&
                         item1.tabCount == item2.tabCount &&
-                        item1.island.name == item2.island.name
+                        item1.island.name == item2.island.name &&
+                        item1.island.color == item2.island.color
 
             item1 is TabPillItem.ExpandedIslandGroup && item2 is TabPillItem.ExpandedIslandGroup ->
                 item1.island.id == item2.island.id &&
                         item1.tabs.map { it.id } == item2.tabs.map { it.id } &&
-                        item1.island.name == item2.island.name
+                        item1.island.name == item2.island.name &&
+                        item1.island.color == item2.island.color
 
             else -> false
         }

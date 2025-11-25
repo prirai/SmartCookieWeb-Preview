@@ -135,6 +135,16 @@ class TabIslandManager(private val context: Context) {
     }
 
     /**
+     * Changes the color of an island
+     */
+    fun changeIslandColor(islandId: String, newColor: Int): Boolean {
+        val island = islands[islandId] ?: return false
+        islands[islandId] = island.withColor(newColor)
+        saveIslands()
+        return true
+    }
+
+    /**
      * Toggles the collapse state of an island.
      * When expanding an island, all other islands are collapsed to maintain single-expand behavior.
      * Use this for the toolbar pill bar.
