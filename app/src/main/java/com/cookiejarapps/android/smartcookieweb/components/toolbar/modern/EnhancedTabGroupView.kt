@@ -75,12 +75,18 @@ class EnhancedTabGroupView @JvmOverloads constructor(
         overScrollMode = OVER_SCROLL_NEVER
         setPadding(4, 2, 4, 2)
 
-        layoutParams = android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            84 // Reduced by 30% from 120dp
-        )
-
         elevation = 2f
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // Force height to 60dp for compact appearance
+        val heightInPx = android.util.TypedValue.applyDimension(
+            android.util.TypedValue.COMPLEX_UNIT_DIP,
+            40f,
+            resources.displayMetrics
+        ).toInt()
+        val newHeightMeasureSpec = MeasureSpec.makeMeasureSpec(heightInPx, MeasureSpec.EXACTLY)
+        super.onMeasure(widthMeasureSpec, newHeightMeasureSpec)
     }
 
     private fun setupIslandManager() {
