@@ -4,6 +4,7 @@ import android.util.Log
 import android.view.View
 import com.cookiejarapps.android.smartcookieweb.browser.toolbar.ToolbarGestureHandler
 import com.cookiejarapps.android.smartcookieweb.browser.toolbar.WebExtensionToolbarFeature
+import com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarMenu
 import com.cookiejarapps.android.smartcookieweb.toolbar.ContextualBottomToolbar
 import com.cookiejarapps.android.smartcookieweb.databinding.FragmentBrowserBinding
 import com.cookiejarapps.android.smartcookieweb.ext.components

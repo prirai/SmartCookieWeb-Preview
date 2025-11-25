@@ -12,7 +12,9 @@ import mozilla.components.concept.storage.VisitInfo
 import mozilla.components.support.ktx.kotlin.tryGetHostFromUrl
 import java.text.DateFormat.getDateTimeInstance
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.ArrayList
+import java.util.Date
+import java.util.Locale
 
 open class HistoryItemRecyclerViewAdapter(
     private var values: List<VisitInfo>

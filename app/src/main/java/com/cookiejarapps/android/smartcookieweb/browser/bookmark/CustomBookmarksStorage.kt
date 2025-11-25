@@ -7,7 +7,8 @@ import mozilla.components.concept.storage.BookmarkInfo
 import mozilla.components.concept.storage.BookmarkNode
 import mozilla.components.concept.storage.BookmarkNodeType
 import mozilla.components.concept.storage.BookmarksStorage
-import java.util.*
+import java.util.ArrayList
+import java.util.UUID
 
 class CustomBookmarksStorage(context: Context): BookmarksStorage {
 

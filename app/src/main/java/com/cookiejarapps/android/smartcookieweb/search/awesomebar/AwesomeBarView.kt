@@ -20,7 +20,11 @@ import mozilla.components.feature.tabs.TabsUseCases
 import mozilla.components.support.ktx.android.content.getColorFromAttr
 import com.cookiejarapps.android.smartcookieweb.search.SearchEngineSource
 import com.cookiejarapps.android.smartcookieweb.search.SearchFragmentState
-import mozilla.components.feature.awesomebar.provider.*
+import mozilla.components.feature.awesomebar.provider.BookmarksStorageSuggestionProvider
+import mozilla.components.feature.awesomebar.provider.HistoryStorageSuggestionProvider
+import mozilla.components.feature.awesomebar.provider.SearchActionProvider
+import mozilla.components.feature.awesomebar.provider.SearchSuggestionProvider
+import mozilla.components.feature.awesomebar.provider.SessionSuggestionProvider
 
 /**
  * View that contains and configures the BrowserAwesomeBar

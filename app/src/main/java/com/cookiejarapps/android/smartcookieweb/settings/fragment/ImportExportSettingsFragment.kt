@@ -27,8 +27,15 @@ import org.json.JSONTokener
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import java.io.*
-import java.util.*
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.io.OutputStream
+import java.io.Reader
+import java.util.Scanner
+import java.util.Date
+import java.util.Locale
 
 
 class ImportExportSettingsFragment : BaseSettingsFragment() {

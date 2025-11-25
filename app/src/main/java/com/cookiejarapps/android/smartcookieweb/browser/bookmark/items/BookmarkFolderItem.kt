@@ -4,7 +4,7 @@ import com.squareup.moshi.JsonReader
 import com.squareup.moshi.JsonWriter
 import java.io.IOException
 import java.io.Serializable
-import java.util.*
+import java.util.Date
 
 class BookmarkFolderItem(title: String?, var parent: BookmarkFolderItem?, id: Long) : BookmarkItem(title, id), Serializable {
 

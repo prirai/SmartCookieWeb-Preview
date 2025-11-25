@@ -21,6 +21,8 @@ class ModernScrollBehavior(
     private var lastScrollDirection = 0
     private var snapThreshold = 0.3f
     private var isScrollingEnabled = true
+    private var isToolbarHidden = false
+    private var consecutiveDownwardScrolls = 0
 
     override fun onLayoutChild(
         parent: CoordinatorLayout,
@@ -60,15 +62,26 @@ class ModernScrollBehavior(
         val toolbarHeight = child.getTotalHeight()
         
         if (toolbarHeight <= 0) {
-            android.util.Log.w("ModernScrollBehavior", "Toolbar height is 0 - cannot apply scroll behavior")
             return
         }
 
-        // Track scroll direction for momentum
-        lastScrollDirection = dy.coerceIn(-1, 1)
+        // Track scroll direction changes
+        val currentDirection = if (dy > 0) 1 else if (dy < 0) -1 else 0
+        
+        // Count consecutive downward scrolls to prevent toolbar flashing
+        if (currentDirection == 1) {
+            consecutiveDownwardScrolls++
+        } else if (currentDirection == -1) {
+            consecutiveDownwardScrolls = 0
+        }
+        
+        lastScrollDirection = currentDirection
         
         totalScrolled += dy
         val newOffset = totalScrolled.coerceIn(0, toolbarHeight)
+        
+        // Update toolbar state tracking
+        isToolbarHidden = (newOffset >= toolbarHeight)
         
         if (newOffset != child.getCurrentOffset()) {
             child.setToolbarOffset(newOffset)
@@ -86,29 +99,27 @@ class ModernScrollBehavior(
         type: Int,
         consumed: IntArray
     ) {
-        // Intelligent snapping based on scroll momentum and position
+        // Only apply intelligent snapping when scroll momentum changes or reaches end
         if (dyUnconsumed != 0) {
             val toolbarHeight = child.getTotalHeight()
             val currentOffset = child.getCurrentOffset()
             val threshold = toolbarHeight * snapThreshold
             
-            
             // Only trigger if we have a valid toolbar height
             if (toolbarHeight > 0) {
                 when {
-                    dyUnconsumed > 0 && currentOffset > threshold -> {
-                        // Scrolling down fast or past threshold - hide completely
+                    // Scrolling down and toolbar should be hidden
+                    dyUnconsumed > 0 && currentOffset > threshold && !isToolbarHidden -> {
                         child.collapse()
+                        isToolbarHidden = true
                     }
-                    dyUnconsumed < 0 -> {
-                        // FIXED: Any upward scroll should show the toolbar when it's hidden
-                        if (currentOffset > 0) {
-                            child.expand()
-                        }
+                    // Scrolling up and toolbar is currently hidden - show it
+                    dyUnconsumed < 0 && isToolbarHidden -> {
+                        child.expand()
+                        isToolbarHidden = false
+                        consecutiveDownwardScrolls = 0
                     }
                 }
-            } else {
-                android.util.Log.w("ModernScrollBehavior", "Cannot apply smart snapping - toolbar height is 0")
             }
         }
     }
@@ -124,12 +135,18 @@ class ModernScrollBehavior(
         val currentOffset = child.getCurrentOffset()
         val midpoint = toolbarHeight / 2
         
+        // Only snap if toolbar is partially visible
         if (currentOffset in 1 until toolbarHeight) {
             if (currentOffset < midpoint) {
                 child.expand()
+                isToolbarHidden = false
             } else {
                 child.collapse()
+                isToolbarHidden = true
             }
+        } else {
+            // Update state based on current position
+            isToolbarHidden = (currentOffset >= toolbarHeight)
         }
     }
 

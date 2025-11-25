@@ -21,7 +21,10 @@ import com.cookiejarapps.android.smartcookieweb.ext.isAppInDarkTheme
 import com.cookiejarapps.android.smartcookieweb.settings.ThemeChoice
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
 import com.cookiejarapps.android.smartcookieweb.theme.applyAppTheme
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mozilla.components.feature.addons.Addon
 import mozilla.components.feature.addons.ui.setIcon
 import mozilla.components.feature.addons.ui.showInformationDialog
@@ -30,7 +33,7 @@ import mozilla.components.feature.addons.ui.translateName
 import mozilla.components.feature.addons.update.DefaultAddonUpdater
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 // An activity to show the details of an add-on.
 class AddonDetailsActivity : AppCompatActivity() {

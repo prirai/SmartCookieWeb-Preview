@@ -39,7 +39,7 @@ import mozilla.components.feature.addons.ui.translateName
 import mozilla.components.feature.addons.ui.translateSummary
 import mozilla.components.support.ktx.android.content.appName
 import mozilla.components.support.ktx.android.content.appVersionName
-import java.util.*
+import java.util.Locale
 import kotlin.math.roundToInt
 
 

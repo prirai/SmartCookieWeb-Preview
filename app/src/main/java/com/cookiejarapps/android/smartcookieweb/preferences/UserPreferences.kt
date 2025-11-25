@@ -9,9 +9,13 @@ import com.cookiejarapps.android.smartcookieweb.settings.HomepageBackgroundChoic
 import com.cookiejarapps.android.smartcookieweb.settings.HomepageChoice
 import com.cookiejarapps.android.smartcookieweb.settings.ThemeChoice
 import com.cookiejarapps.android.smartcookieweb.components.toolbar.ToolbarPosition
-import mozilla.components.support.ktx.android.content.*
+import mozilla.components.support.ktx.android.content.booleanPreference
+import mozilla.components.support.ktx.android.content.floatPreference
+import mozilla.components.support.ktx.android.content.intPreference
+import mozilla.components.support.ktx.android.content.longPreference
+import mozilla.components.support.ktx.android.content.stringPreference
 
-class UserPreferences(appContext: Context) : PreferencesHolder {
+class UserPreferences(appContext: Context) : mozilla.components.support.ktx.android.content.PreferencesHolder {
 
     override val preferences: SharedPreferences =
         appContext.getSharedPreferences(SCW_PREFERENCES, MODE_PRIVATE)
@@ -68,7 +72,6 @@ class UserPreferences(appContext: Context) : PreferencesHolder {
     var barAddonsList by stringPreference(BAR_ADDONS_LIST, "")
     var bookmarkSortType by intPreference(BOOKMARK_SORT_TYPE, BookmarkSortType.MANUAL.ordinal)
 
-    // TODO: make these configurable & clean up duplicates
     var shouldUseBottomToolbar: Boolean
         get() {
             return toolbarPosition == ToolbarPosition.BOTTOM.ordinal

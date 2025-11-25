@@ -23,7 +23,10 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import com.cookiejarapps.android.smartcookieweb.addons.WebExtensionPopupFragment
 import com.cookiejarapps.android.smartcookieweb.addons.WebExtensionTabletPopupFragment
-import com.cookiejarapps.android.smartcookieweb.browser.*
+import com.cookiejarapps.android.smartcookieweb.browser.BrowsingMode
+import com.cookiejarapps.android.smartcookieweb.browser.BrowsingModeManager
+import com.cookiejarapps.android.smartcookieweb.browser.DefaultBrowsingModeManager
+import com.cookiejarapps.android.smartcookieweb.browser.SearchEngineList
 import com.cookiejarapps.android.smartcookieweb.browser.home.HomeFragmentDirections
 import com.cookiejarapps.android.smartcookieweb.browser.tabs.TabsTrayFragment
 import com.cookiejarapps.android.smartcookieweb.databinding.ActivityMainBinding

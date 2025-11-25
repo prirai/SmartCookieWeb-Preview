@@ -2,7 +2,14 @@ package com.cookiejarapps.android.smartcookieweb.components.toolbar.modern
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.Rect
+import android.graphics.Shader
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -112,6 +119,14 @@ class ModernTabPillAdapter(
     override fun getItemCount(): Int = displayItems.size
 
     fun updateDisplayItems(items: List<TabPillItem>, selectedId: String?) {
+        android.util.Log.d(
+            "ModernTabPillAdapter",
+            "updateDisplayItems: called with ${items.size} items, selectedId=$selectedId"
+        )
+        android.util.Log.d(
+            "ModernTabPillAdapter",
+            "updateDisplayItems: current displayItems.size=${displayItems.size}"
+        )
         val oldSelectedId = selectedTabId
         selectedTabId = selectedId
 
@@ -121,6 +136,10 @@ class ModernTabPillAdapter(
 
         // If only selection changed, just update affected items
         if (!itemsChanged && oldSelectedId != selectedId) {
+            android.util.Log.d(
+                "ModernTabPillAdapter",
+                "updateDisplayItems: Only selection changed, updating affected items"
+            )
             // Find and update only the selected/deselected items
             displayItems.forEachIndexed { index, item ->
                 when (item) {
@@ -148,32 +167,52 @@ class ModernTabPillAdapter(
 
         // If nothing changed at all, skip update
         if (!itemsChanged && oldSelectedId == selectedId) {
+            android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Nothing changed, skipping update")
             return
         }
 
         val oldSize = displayItems.size
+        android.util.Log.d(
+            "ModernTabPillAdapter",
+            "updateDisplayItems: Clearing and updating, oldSize=$oldSize, newSize=${items.size}"
+        )
         displayItems.clear()
         displayItems.addAll(items)
 
         when {
             oldSize == 0 && items.isNotEmpty() -> {
+                android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Inserting ${items.size} items")
                 notifyItemRangeInserted(0, items.size)
             }
 
             oldSize > items.size -> {
+                android.util.Log.d(
+                    "ModernTabPillAdapter",
+                    "updateDisplayItems: Items removed, notifying range changed and removed"
+                )
                 notifyItemRangeChanged(0, items.size)
                 notifyItemRangeRemoved(items.size, oldSize - items.size)
             }
 
             oldSize < items.size -> {
+                android.util.Log.d(
+                    "ModernTabPillAdapter",
+                    "updateDisplayItems: Items added, notifying range changed and inserted"
+                )
                 notifyItemRangeChanged(0, oldSize)
                 notifyItemRangeInserted(oldSize, items.size - oldSize)
             }
 
             else -> {
+                android.util.Log.d("ModernTabPillAdapter", "updateDisplayItems: Same size, notifying range changed")
                 notifyItemRangeChanged(0, items.size)
             }
         }
+
+        android.util.Log.d(
+            "ModernTabPillAdapter",
+            "updateDisplayItems: Complete, final displayItems.size=${displayItems.size}"
+        )
     }
 
     private fun areItemsSame(item1: TabPillItem, item2: TabPillItem): Boolean {
@@ -739,11 +778,7 @@ class ModernTabPillAdapter(
                                     .start()
                             } else {
                                 // Threshold not met - spring back
-                                tabView.animate()
-                                    .translationY(0f)
-                                    .alpha(1f)
-                                    .setDuration(200)
-                                    .start()
+                                resetTabVisualState(tabView)
                             }
                             isDragging = false
                             true
@@ -757,6 +792,25 @@ class ModernTabPillAdapter(
                     else -> false
                 }
             }
+        }
+
+        private fun resetTabVisualState(tabView: View) {
+            // Properly reset all visual properties to default state
+            tabView.animate()
+                .translationY(0f)
+                .translationX(0f)
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .rotation(0f)
+                .setDuration(200)
+                .withEndAction {
+                    // Ensure elevation is reset
+                    if (tabView is androidx.cardview.widget.CardView) {
+                        tabView.elevation = 4f * tabView.resources.displayMetrics.density
+                    }
+                }
+                .start()
         }
 
         private fun animateHeaderClick() {

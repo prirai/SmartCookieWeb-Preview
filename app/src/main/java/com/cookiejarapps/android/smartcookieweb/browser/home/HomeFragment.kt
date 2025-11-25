@@ -239,10 +239,24 @@ class HomeFragment : Fragment() {
                 }
             }
 
+            // Remove unused 'add' column from database
+            val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    // Create new table without the 'add' column
+                    db.execSQL("CREATE TABLE shortcutentity_new (uid INTEGER NOT NULL, url TEXT, title TEXT, PRIMARY KEY(uid))")
+                    // Copy data from old table to new table
+                    db.execSQL("INSERT INTO shortcutentity_new (uid, url, title) SELECT uid, url, title FROM shortcutentity")
+                    // Drop old table
+                    db.execSQL("DROP TABLE shortcutentity")
+                    // Rename new table to original name
+                    db.execSQL("ALTER TABLE shortcutentity_new RENAME TO shortcutentity")
+                }
+            }
+
             database = Room.databaseBuilder(
                 requireContext(),
                 ShortcutDatabase::class.java, "shortcut-database"
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
             val shortcutDao = database?.shortcutDao()
             val shortcuts: MutableList<ShortcutEntity> = shortcutDao?.getAll() as MutableList

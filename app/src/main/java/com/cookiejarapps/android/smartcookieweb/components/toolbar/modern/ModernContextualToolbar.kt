@@ -2,7 +2,7 @@ package com.cookiejarapps.android.smartcookieweb.components.toolbar.modern
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.*
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View

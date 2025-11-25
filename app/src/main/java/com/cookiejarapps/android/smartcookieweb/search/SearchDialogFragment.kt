@@ -31,7 +31,9 @@ import com.cookiejarapps.android.smartcookieweb.databinding.FragmentSearchDialog
 import com.cookiejarapps.android.smartcookieweb.ext.components
 import com.cookiejarapps.android.smartcookieweb.ext.isAppInDarkTheme
 import com.cookiejarapps.android.smartcookieweb.preferences.UserPreferences
-import com.cookiejarapps.android.smartcookieweb.search.*
+import com.cookiejarapps.android.smartcookieweb.search.SearchFragmentAction
+import com.cookiejarapps.android.smartcookieweb.search.SearchFragmentState
+import com.cookiejarapps.android.smartcookieweb.search.SearchFragmentStore
 import com.cookiejarapps.android.smartcookieweb.search.awesomebar.AwesomeBarView
 import com.cookiejarapps.android.smartcookieweb.search.toolbar.ToolbarView
 import com.cookiejarapps.android.smartcookieweb.settings.ThemeChoice

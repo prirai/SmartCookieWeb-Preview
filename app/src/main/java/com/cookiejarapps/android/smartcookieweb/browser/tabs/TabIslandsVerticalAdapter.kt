@@ -398,11 +398,45 @@ class TabIslandsVerticalAdapter(
                 onTabClose(tab.id)
             }
 
-            // Long press for ungrouped tabs to create island
+            // Add touch handling for drag vs long press
             if (island == null) {
-                itemView.setOnLongClickListener {
-                    onUngroupedTabLongPress(tab.id)
-                    true
+                var startTime: Long = 0
+                var startX: Float = 0f
+                var startY: Float = 0f
+                val longPressThreshold = 500L // milliseconds
+                val moveThreshold = 20f // pixels
+                
+                itemView.setOnTouchListener { view, event ->
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            startTime = System.currentTimeMillis()
+                            startX = event.x
+                            startY = event.y
+                            false // Allow drag to take precedence
+                        }
+                        android.view.MotionEvent.ACTION_MOVE -> {
+                            val deltaX = kotlin.math.abs(event.x - startX)
+                            val deltaY = kotlin.math.abs(event.y - startY)
+                            // If moved more than threshold, cancel long press
+                            if (deltaX > moveThreshold || deltaY > moveThreshold) {
+                                return@setOnTouchListener false // Let drag handle it
+                            }
+                            false
+                        }
+                        android.view.MotionEvent.ACTION_UP -> {
+                            val duration = System.currentTimeMillis() - startTime
+                            val deltaX = kotlin.math.abs(event.x - startX)
+                            val deltaY = kotlin.math.abs(event.y - startY)
+                            
+                            // Only trigger long press if held long enough without significant movement
+                            if (duration >= longPressThreshold && deltaX < moveThreshold && deltaY < moveThreshold) {
+                                onUngroupedTabLongPress(tab.id)
+                                return@setOnTouchListener true
+                            }
+                            false
+                        }
+                        else -> false
+                    }
                 }
             }
         }

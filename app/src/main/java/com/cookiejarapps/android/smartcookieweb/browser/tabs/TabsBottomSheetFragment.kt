@@ -158,6 +158,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         ) {
             private var draggedViewHolder: RecyclerView.ViewHolder? = null
             private var dropTargetPosition: Int = -1
+            private var lastHighlightedPosition: Int = -1
 
             override fun onMove(
                 recyclerView: RecyclerView,
@@ -167,7 +168,11 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 val fromPosition = viewHolder.bindingAdapterPosition
                 val toPosition = target.bindingAdapterPosition
 
-                if (fromPosition == -1 || toPosition == -1) return false
+                android.util.Log.d("TabsBottomSheet", "onMove: fromPosition=$fromPosition, toPosition=$toPosition")
+
+                if (fromPosition == -1 || toPosition == -1) {
+                    return false
+                }
 
                 // Get the items being moved
                 val fromItem = tabsAdapter.getItemAt(fromPosition)
@@ -180,12 +185,48 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     return false
                 }
 
-                dropTargetPosition = toPosition
-                return true
+                // More precise drop target validation - allow all valid handleDrop targets
+                val canDrop = when (toItem) {
+                    is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> true
+                    is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> true
+                    is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> true
+                    is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> true
+                    is TabIslandsVerticalAdapter.ListItem.TabInIsland -> true
+                    is TabIslandsVerticalAdapter.ListItem.IslandBottomCap -> true
+                    else -> false
+                }
+
+                if (canDrop) {
+                    dropTargetPosition = toPosition
+                    android.util.Log.d("TabsBottomSheet", "onMove: Set dropTargetPosition=$toPosition")
+                    // Add haptic feedback and visual confirmation
+                    target.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                    target.itemView.animate()
+                        .scaleX(1.05f)
+                        .scaleY(1.05f)
+                        .setDuration(100)
+                        .start()
+                    return true
+                } else {
+                    return false
+                }
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 // Not implementing swipe
+            }
+
+            override fun getMovementFlags(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+                val swipeFlags = 0
+                android.util.Log.d(
+                    "TabsBottomSheet",
+                    "getMovementFlags: dragFlags=$dragFlags, swipeFlags=$swipeFlags, viewHolder position=${viewHolder.bindingAdapterPosition}"
+                )
+                return makeMovementFlags(dragFlags, swipeFlags)
             }
 
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
@@ -194,6 +235,7 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 when (actionState) {
                     ItemTouchHelper.ACTION_STATE_DRAG -> {
                         draggedViewHolder = viewHolder
+                        dropTargetPosition = -1
                         viewHolder?.itemView?.apply {
                             // Animate elevation and scale
                             animate()
@@ -207,6 +249,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     }
 
                     ItemTouchHelper.ACTION_STATE_IDLE -> {
+                        android.util.Log.d(
+                            "TabsBottomSheet",
+                            "onSelectedChanged: IDLE, dropTargetPosition=$dropTargetPosition"
+                        )
                         draggedViewHolder?.itemView?.apply {
                             // Reset view
                             animate()
@@ -218,20 +264,66 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                             elevation = 0f
                         }
 
-                        // Handle drop
-                        if (dropTargetPosition != -1) {
-                            handleDrop(draggedViewHolder, dropTargetPosition)
+                        // Handle drag-out-of-island (ungroup) special case
+                        if (dropTargetPosition == -999) {
+                            android.util.Log.d(
+                                "TabsBottomSheet",
+                                "onSelectedChanged: IDLE, ungrouping via drag-out"
+                            )
+                            handleUngroupDrop(draggedViewHolder)
+                            draggedViewHolder = null
+                            dropTargetPosition = -1
+                            return
+                        }
+
+                        // Simple approach: use the last highlighted target position
+                        val targetPosition = when {
+                            dropTargetPosition != -1 -> dropTargetPosition
+                            lastHighlightedPosition != -1 -> lastHighlightedPosition
+                            else -> findClosestValidDropTarget(draggedViewHolder)
+                        }
+
+                        android.util.Log.d(
+                            "TabsBottomSheet",
+                            "onSelectedChanged: IDLE, final targetPosition=$targetPosition (dropTargetPosition was $dropTargetPosition)"
+                        )
+
+                        // Handle drop if we have a valid target
+                        if (targetPosition != -1) {
+                            handleDrop(draggedViewHolder, targetPosition)
                         }
 
                         draggedViewHolder = null
                         dropTargetPosition = -1
+                        lastHighlightedPosition = -1
                     }
                 }
             }
 
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                viewHolder.itemView.alpha = 1.0f
+
+                // Reset all child view states
+                for (i in 0 until recyclerView.childCount) {
+                    val child = recyclerView.getChildAt(i)
+                    child.background = null
+                    child.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .alpha(1f)
+                        .setDuration(200)
+                        .start()
+                }
+
+                // Reset dragged view
+                viewHolder.itemView.apply {
+                    alpha = 1.0f
+                    scaleX = 1f
+                    scaleY = 1f
+                    translationX = 0f
+                    translationY = 0f
+                    elevation = 0f
+                }
             }
 
             override fun onChildDraw(
@@ -244,8 +336,10 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 isCurrentlyActive: Boolean
             ) {
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
-                    // Highlight drop targets
-                    highlightDropTargets(recyclerView, viewHolder, dY)
+                    // Highlight drop targets and track position
+                    lastHighlightedPosition = highlightDropTargets(recyclerView, viewHolder, dY)
+
+                    // Drag-out detection is removed - use visual target detection instead
                 }
 
                 super.onChildDraw(canvas, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
@@ -262,48 +356,184 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
         recyclerView: RecyclerView,
         draggedViewHolder: RecyclerView.ViewHolder,
         dY: Float
-    ) {
+    ): Int {
         val draggedPosition = draggedViewHolder.bindingAdapterPosition
-        if (draggedPosition == -1) return
+        if (draggedPosition == -1) return -1
 
         val draggedItem = tabsAdapter.getItemAt(draggedPosition)
         if (draggedItem !is TabIslandsVerticalAdapter.ListItem.TabInIsland &&
             draggedItem !is TabIslandsVerticalAdapter.ListItem.UngroupedTab
         ) {
-            return
+            return -1
         }
 
+        // Calculate drag position
+        val itemView = draggedViewHolder.itemView
+        val draggedCenterY = itemView.top + dY + itemView.height / 2f
+
         // Find and highlight potential drop targets
+        var closestTarget: View? = null
+        var closestDistance = Float.MAX_VALUE
+        var highlightedPosition = -1
+
         for (i in 0 until recyclerView.childCount) {
-            val child = recyclerView.getChildAt(i)
-            val viewHolder = recyclerView.getChildViewHolder(child)
+            val child = recyclerView.getChildAt(i) ?: continue
+            val viewHolder = recyclerView.getChildViewHolder(child) ?: continue
             val position = viewHolder.bindingAdapterPosition
 
-            if (position == -1) continue
+            if (position == -1 || position >= tabsAdapter.itemCount || child == itemView) continue
 
-            val item = tabsAdapter.getItemAt(position)
+            val item = try {
+                tabsAdapter.getItemAt(position)
+            } catch (e: Exception) {
+                continue
+            }
 
-            // Highlight island headers and ungrouped header
-            val shouldHighlight = when (item) {
+            // Calculate distance from dragged item to this child
+            val childCenterY = child.top + child.height / 2f
+            val distance = kotlin.math.abs(draggedCenterY - childCenterY)
+
+            // Check if this item can be a drop target
+            val canBeTarget = when (item) {
                 is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> true
                 is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> true
                 is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> true
+                is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> true
+                is TabIslandsVerticalAdapter.ListItem.TabInIsland -> true
                 else -> false
             }
 
-            if (shouldHighlight) {
+            // Reset background first
+            try {
+                child.background = null
+            } catch (e: Exception) {
+                // View might be in invalid state
+            }
+
+            if (canBeTarget && distance < child.height && distance < closestDistance) {
+                closestTarget = child
+                closestDistance = distance
+                highlightedPosition = position
+            }
+
+
+        }
+
+        // Highlight the closest valid drop target
+        closestTarget?.let { target ->
+            try {
                 val highlightColor = ContextCompat.getColor(
                     requireContext(),
-                    R.color.drop_target_highlight
+                    android.R.color.holo_blue_light
                 )
-                child.setBackgroundColor(highlightColor)
-            } else {
-                child.background = null
+                target.setBackgroundColor(highlightColor)
+
+                // Add visual feedback to indicate successful drop zone
+                target.animate()
+                    .scaleX(1.02f)
+                    .scaleY(1.02f)
+                    .setDuration(100)
+                    .start()
+
+                // Reset other items
+                for (i in 0 until recyclerView.childCount) {
+                    val child = recyclerView.getChildAt(i)
+                    if (child != null && child != target && child != itemView) {
+                        child.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(100)
+                            .start()
+                    }
+                }
+
+                android.util.Log.d(
+                    "TabsBottomSheet",
+                    "highlightDropTargets: Highlighted target at position=$highlightedPosition, distance=$closestDistance"
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("TabsBottomSheet", "Error highlighting target", e)
             }
         }
+
+        return highlightedPosition
+    }
+
+    private fun findClosestValidDropTarget(draggedViewHolder: RecyclerView.ViewHolder?): Int {
+        if (draggedViewHolder == null) return -1
+
+        val recyclerView = binding.tabsRecyclerView
+        val draggedView = draggedViewHolder.itemView
+        val draggedCenterY = draggedView.top + draggedView.height / 2f
+        val draggedPosition = draggedViewHolder.bindingAdapterPosition
+
+        if (draggedPosition == -1 || draggedPosition >= tabsAdapter.itemCount) return -1
+
+        var closestPosition = -1
+        var closestDistance = Float.MAX_VALUE
+
+        val draggedItem = try {
+            tabsAdapter.getItemAt(draggedPosition)
+        } catch (e: Exception) {
+            return -1
+        }
+
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i) ?: continue
+            val viewHolder = recyclerView.getChildViewHolder(child) ?: continue
+            val position = viewHolder.bindingAdapterPosition
+
+            if (position == -1 || position >= tabsAdapter.itemCount || child == draggedView) continue
+
+            val item = try {
+                tabsAdapter.getItemAt(position)
+            } catch (e: Exception) {
+                continue
+            }
+
+            // Check if this can be a valid drop target
+            val canBeTarget = when (item) {
+                is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> true
+                is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> true
+                is TabIslandsVerticalAdapter.ListItem.UngroupedHeader -> {
+                    // Allow ungrouping from islands
+                    draggedItem is TabIslandsVerticalAdapter.ListItem.TabInIsland
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> {
+                    // Allow grouping ungrouped tabs together
+                    draggedItem is TabIslandsVerticalAdapter.ListItem.UngroupedTab
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.TabInIsland -> true
+                is TabIslandsVerticalAdapter.ListItem.IslandBottomCap -> true
+                else -> false
+            }
+
+            if (canBeTarget) {
+                val childCenterY = child.top + child.height / 2f
+                val distance = kotlin.math.abs(draggedCenterY - childCenterY)
+
+                if (distance < child.height && distance < closestDistance) {
+                    closestDistance = distance
+                    closestPosition = position
+                    android.util.Log.d(
+                        "TabsBottomSheet",
+                        "findClosestValidDropTarget: Found closer target at position=$position, distance=$distance"
+                    )
+                }
+            }
+        }
+
+        android.util.Log.d(
+            "TabsBottomSheet",
+            "findClosestValidDropTarget: Returning closestPosition=$closestPosition"
+        )
+        return closestPosition
     }
 
     private fun handleDrop(viewHolder: RecyclerView.ViewHolder?, targetPosition: Int) {
+        android.util.Log.d("TabsBottomSheet", "handleDrop: targetPosition=$targetPosition")
         if (viewHolder == null || targetPosition == -1) return
 
         val sourcePosition = viewHolder.bindingAdapterPosition
@@ -324,14 +554,12 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                 is TabIslandsVerticalAdapter.ListItem.ExpandedIslandHeader -> {
                     // Add tab to island
                     islandManager.addTabToIsland(tabId, targetItem.island.id)
-                    animateItemMove(sourcePosition, targetPosition)
                     updateTabsDisplay()
                 }
 
                 is TabIslandsVerticalAdapter.ListItem.CollapsedIsland -> {
                     // Add tab to collapsed island
                     islandManager.addTabToIsland(tabId, targetItem.island.id)
-                    animateItemMove(sourcePosition, targetPosition)
                     updateTabsDisplay()
                 }
 
@@ -340,16 +568,93 @@ class TabsBottomSheetFragment : BottomSheetDialogFragment() {
                     val currentIsland = islandManager.getIslandForTab(tabId)
                     if (currentIsland != null) {
                         islandManager.removeTabFromIsland(tabId, currentIsland.id)
-                        animateItemMove(sourcePosition, targetPosition)
+                        updateTabsDisplay()
+                    }
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.UngroupedTab -> {
+                    // Dragged ungrouped tab onto another ungrouped tab - create island
+                    val targetTabId = targetItem.tab.id
+                    if (sourceItem is TabIslandsVerticalAdapter.ListItem.UngroupedTab) {
+                        val sourceTabId = sourceItem.tab.id
+                        if (sourceTabId != targetTabId) {
+                            // Create island with both tabs
+                            islandManager.createIsland(listOf(sourceTabId, targetTabId))
+                            updateTabsDisplay()
+                        }
+                    }
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.TabInIsland -> {
+                    // Handle dragging to tabs within islands
+                    if (sourceItem is TabIslandsVerticalAdapter.ListItem.UngroupedTab) {
+                        // Ungrouped tab dragged to grouped tab - add to that island
+                        val targetIsland = islandManager.getIslandForTab(targetItem.tab.id)
+                        if (targetIsland != null) {
+                            islandManager.addTabToIsland(sourceItem.tab.id, targetIsland.id)
+                            updateTabsDisplay()
+                        }
+                    } else if (sourceItem is TabIslandsVerticalAdapter.ListItem.TabInIsland) {
+                        // Tab from one island dragged to another island
+                        val sourceIsland = islandManager.getIslandForTab(sourceItem.tab.id)
+                        val targetIsland = islandManager.getIslandForTab(targetItem.tab.id)
+
+                        if (sourceIsland != null && targetIsland != null && sourceIsland.id != targetIsland.id) {
+                            // Move tab between islands
+                            islandManager.removeTabFromIsland(sourceItem.tab.id, sourceIsland.id)
+                            islandManager.addTabToIsland(sourceItem.tab.id, targetIsland.id)
+                            updateTabsDisplay()
+                        }
+                    }
+                }
+
+                is TabIslandsVerticalAdapter.ListItem.IslandBottomCap -> {
+                    // Handle drop on island bottom cap - treat as drop on island
+                    val currentIsland = islandManager.getIslandForTab(tabId)
+                    if (currentIsland?.id != targetItem.island.id) {
+                        if (currentIsland != null) {
+                            islandManager.removeTabFromIsland(tabId, currentIsland.id)
+                        }
+                        islandManager.addTabToIsland(tabId, targetItem.island.id)
                         updateTabsDisplay()
                     }
                 }
 
                 else -> {
-                    // Reordering within same island or ungrouped section
-                    // This could be implemented for fine-grained reordering
+                    // Handle any other unknown cases
+                    // No action needed for unsupported target types
                 }
             }
+        }
+    }
+
+
+    private fun handleUngroupDropSync(viewHolder: RecyclerView.ViewHolder?) {
+        if (viewHolder == null) return
+
+        val sourcePosition = viewHolder.bindingAdapterPosition
+        if (sourcePosition == -1) return
+
+        val sourceItem = tabsAdapter.getItemAt(sourcePosition)
+
+        // Extract tab ID from source
+        val tabId = when (sourceItem) {
+            is TabIslandsVerticalAdapter.ListItem.TabInIsland -> sourceItem.tab.id
+            else -> return
+        }
+
+        // Remove tab from its current island immediately
+        val currentIsland = islandManager.getIslandForTab(tabId)
+        if (currentIsland != null) {
+            islandManager.removeTabFromIsland(tabId, currentIsland.id)
+            viewHolder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            updateTabsDisplayImmediate()
+        }
+    }
+
+    private fun handleUngroupDrop(viewHolder: RecyclerView.ViewHolder?) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            handleUngroupDropSync(viewHolder)
         }
     }
 
