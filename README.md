@@ -1,3 +1,5 @@
+Now developing at [prirai/nira-browser](https://github.com/prirai/nira-browser) with exciting new features!
+
 <p align="center"><a href="#"><img src="https://user-images.githubusercontent.com/44752343/112723990-1d100980-8f09-11eb-94d3-a77cfdb00cd3.png" height="180" title="SmartCookieWeb" alt="SmartCookieWeb"></a></p>
 
 <h2 align="center"><b>SmartCookieWeb Preview</b></h2>
